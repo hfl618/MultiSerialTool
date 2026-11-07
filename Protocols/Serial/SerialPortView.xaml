@@ -1,0 +1,81 @@
+﻿<UserControl x:Class="MultiSerialTool.Protocols.Serial.SerialPortView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:MultiSerialTool.Protocols.Serial"
+             xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <loc:LocConverter x:Key="LocConverter"/>
+    </UserControl.Resources>
+
+    <DockPanel Margin="8">
+        <!-- 绑定 SerialViewModel.Devices；选中项绑定 SelectedDevice。
+             表格只读：行数据全部来自真实串口扫描，禁止手工增删改 -->
+        <DataGrid ItemsSource="{Binding Devices}"
+                  SelectedItem="{Binding SelectedDevice}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  CanUserResizeColumns="True"
+                  SelectionMode="Single"
+                  HorizontalScrollBarVisibility="Auto"
+                  VerticalScrollBarVisibility="Auto"
+                  GridLinesVisibility="All"
+                  HeadersVisibility="Column">
+
+            <!-- 双击行：连接/断开切换 -->
+            <DataGrid.InputBindings>
+                <MouseBinding MouseAction="LeftDoubleClick"
+                              Command="{Binding ToggleConnectCommand}"/>
+            </DataGrid.InputBindings>
+
+            <!-- 右键行：连接切换 + 刷新串口列表 -->
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="{Binding PlacementTarget.DataContext.ToggleText,
+                                       RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              Command="{Binding PlacementTarget.DataContext.ToggleConnectCommand,
+                                       RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                    <MenuItem Header="{loc:Translate 刷新串口列表}"
+                              Command="{Binding PlacementTarget.DataContext.RefreshCommand,
+                                       RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="{loc:Translate 串口名字}" Binding="{Binding Name}"                    Width="150" MinWidth="80"/>
+                <DataGridTextColumn Header="{loc:Translate 类型}"     Binding="{Binding Type}"                    Width="100" MinWidth="80"/>
+                <DataGridTextColumn Header="{loc:Translate 地址}"     Binding="{Binding Address, Converter={StaticResource LocConverter}}" Width="180" MinWidth="100"/>
+                <DataGridTextColumn Header="{loc:Translate 波特率}" Binding="{Binding BaudRate}"                Width="100" MinWidth="80"/>
+            </DataGrid.Columns>
+
+            <!-- 整行颜色：根据每行的 State 切换 -->
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <!-- 深色背景统一白字，保证各状态行上的串口信息可读 -->
+                    <Setter Property="Foreground" Value="White"/>
+                    <!-- 连接出错时，悬停行可查看具体原因（如端口被占用） -->
+                    <Setter Property="ToolTip" Value="{Binding ErrorMessage}"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding State}" Value="Connected">
+                            <Setter Property="Background" Value="#2E7D32"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding State}" Value="Disconnected">
+                            <Setter Property="Background" Value="#616161"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding State}" Value="Connecting">
+                            <Setter Property="Background" Value="#F9A825"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding State}" Value="Error">
+                            <Setter Property="Background" Value="#C62828"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

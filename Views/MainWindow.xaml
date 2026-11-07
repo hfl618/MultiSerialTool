@@ -1,0 +1,130 @@
+<Window
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:local="clr-namespace:MultiSerialTool"
+        xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+        xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm"
+        xmlns:serial="clr-namespace:MultiSerialTool.Protocols.Serial"
+        xmlns:tcp="clr-namespace:MultiSerialTool.Protocols.Tcp"
+        xmlns:mqtt="clr-namespace:MultiSerialTool.Protocols.Mqtt"
+        xmlns:vm="clr-namespace:MultiSerialTool.ViewModels"
+        xmlns:views="clr-namespace:MultiSerialTool.Views"
+        xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+        xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
+        x:Class="MultiSerialTool.Views.MainWindow"
+        mc:Ignorable="d"
+        Title="MultiSerialTool" Height="450" Width="800"
+        Background="#F5F5F5" Foreground="#222222">
+
+    <Window.Resources>
+        <!-- 协议 VM → 协议 View（左侧设备区） -->
+        <DataTemplate DataType="{x:Type serial:SerialViewModel}">
+            <serial:SerialPortView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type tcp:TcpViewModel}">
+            <tcp:TcpView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type mqtt:MqttViewModel}">
+            <mqtt:MqttView/>
+        </DataTemplate>
+
+        <!-- 右侧顶层页面映射 -->
+        <DataTemplate DataType="{x:Type serial:SerialWorkspaceViewModel}">
+            <serial:SerialWorkspaceView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <views:SettingsView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:LogViewModel}">
+            <views:LogView/>
+        </DataTemplate>
+
+        <!-- 动态绑定字符串的翻译转换器 -->
+        <loc:LocConverter x:Key="LocConverter"/>
+    </Window.Resources>
+
+    <Window.DataContext>
+        <vm:MainViewModel/>
+    </Window.DataContext>
+
+    <dxb:BarManager Margin="0,0,0,4">
+        <dxb:BarManager.Bars>
+            <!-- 顶部菜单栏 -->
+            <dxb:Bar Caption="{loc:Translate 主菜单}" IsMainMenu="True">
+                <dxb:Bar.DockInfo>
+                    <dxb:BarDockInfo ContainerType="Top"/>
+                </dxb:Bar.DockInfo>
+                <dxb:BarSubItem Content="{loc:Translate 文件}">
+                    <dxb:BarButtonItem Content="{loc:Translate 打开}"/>
+                </dxb:BarSubItem>
+                <dxb:BarSubItem Content="{loc:Translate 帮助}">
+                    <dxb:BarButtonItem Content="{loc:Translate 设置}" Command="{Binding ShowSettingsCommand}"/>
+                    <dxb:BarButtonItem Content="LOG" Command="{Binding ShowLogCommand}"/>
+                    <dxb:BarButtonItem Content="{loc:Translate 版本}" Command="{Binding ShowAboutCommand}"/>
+                    <!-- 语言切换：CommandParameter 传 culture code，显示文本走本地化 -->
+                    <dxb:BarSubItem Content="{loc:Translate 语言}">
+                        <dxb:BarButtonItem Content="{loc:Translate 简体中文}"
+                                           Command="{Binding SwitchLanguageCommand}"
+                                           CommandParameter="zh-CN"/>
+                        <dxb:BarButtonItem Content="English"
+                                           Command="{Binding SwitchLanguageCommand}"
+                                           CommandParameter="en-US"/>
+                    </dxb:BarSubItem>
+                </dxb:BarSubItem>
+            </dxb:Bar>
+
+            <!-- 底部状态栏 -->
+            <dxb:Bar Caption="{loc:Translate 状态栏}" IsStatusBar="True" UseWholeRow="True">
+                <dxb:Bar.DockInfo>
+                    <dxb:BarDockInfo ContainerType="Bottom"/>
+                </dxb:Bar.DockInfo>
+                <dxb:BarStaticItem x:Name="StatusMessage" Content="{loc:Translate 就绪}"/>
+                <dxb:BarStaticItem x:Name="ClockItem" Content="00：00" Alignment="Far"/>
+            </dxb:Bar>
+        </dxb:BarManager.Bars>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="160" MinWidth="160" MaxWidth="400"/>
+                <!-- 左侧边栏 -->
+                <ColumnDefinition Width="Auto"/>
+                <!-- 分隔条 -->
+                <ColumnDefinition Width="*"/>
+                <!-- 右侧，占满剩余 -->
+            </Grid.ColumnDefinitions>
+
+            <!-- 左侧边栏：协议下拉 + 设备列表 -->
+            <Border Grid.Column="0" CornerRadius="4">
+                <DockPanel Margin="10">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Margin="10">
+                        <TextBlock Text="{loc:Translate 连接方式：}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox ItemsSource="{Binding Protocols}"
+                                  SelectedItem="{Binding CurrentProtocol}"
+                                  VerticalAlignment="Center">
+                            <!-- 内部标识不变，仅显示层翻译 -->
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource LocConverter}}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- 设备列表：由 CurrentViewModel 决定 -->
+                    <ContentControl Content="{Binding CurrentViewModel}"/>
+                </DockPanel>
+            </Border>
+
+            <!-- 可拖动分隔条 -->
+            <GridSplitter Grid.Column="1" Width="3" HorizontalAlignment="Stretch"/>
+
+            <!-- 右侧内容区：协议工作区/设置页 -->
+            <Border Grid.Column="2" CornerRadius="4" Margin="6,0,0,0">
+                <ContentControl Content="{Binding RightContent}"/>
+            </Border>
+        </Grid>
+    </dxb:BarManager>
+
+</Window>

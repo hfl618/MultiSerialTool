@@ -1,0 +1,193 @@
+<UserControl x:Class="MultiSerialTool.Protocols.Serial.SerialWorkspaceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:local="clr-namespace:MultiSerialTool.Protocols.Serial"
+             xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <dx:DXTabControl>
+        <dx:DXTabControl.View>
+            <dx:TabControlScrollView HeaderLocation="Right"/>
+        </dx:DXTabControl.View>
+
+        <!-- 日志（收发混合显示 + 发送区） -->
+        <dx:DXTabItem Header="{loc:Translate 日志}">
+
+            <DockPanel>
+                <!-- 日志工具栏 -->
+                <Border DockPanel.Dock="Bottom"
+                        Background="#EFEFEF"
+                        BorderThickness="0,1,0,0"
+                        Padding="8,4">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 左侧：真实状态文本，绑定当前设备 -->
+                        <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                                   Text="{Binding CurrentStatusText}"/>
+
+                        <!-- HEX/ASCII 显示切换 -->
+                        <CheckBox Grid.Column="1" VerticalAlignment="Center"
+                                  Margin="0,0,12,0"
+                                  Content="{loc:Translate HEX }"
+                                  IsChecked="{Binding IsHexDisplay}"/>
+
+                        <!-- 右侧：图标按钮组 -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <dx:SimpleButton x:Name="BtnFind" Margin="4,0" ToolTip="{loc:Translate 查找}"
+                             Glyph="{dx:SvgImageSource Uri='/Assets/Icons/find.svg'}"
+                             GlyphWidth="16" GlyphHeight="16"/>
+                            <dx:SimpleButton x:Name="BtnClear" Margin="4,0" ToolTip="{loc:Translate 清空}"
+                             Glyph="{dx:SvgImageSource Uri='/Assets/Icons/clear.svg'}"
+                             GlyphWidth="16" GlyphHeight="16"
+                             Command="{Binding ClearLogCommand}"/>
+                            <dx:SimpleButton x:Name="BtnSettings" Margin="4,0" ToolTip="{loc:Translate 设置}"
+                             Glyph="{dx:SvgImageSource Uri='/Assets/Icons/setting.svg'}"
+                             GlyphWidth="16" GlyphHeight="16"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <!-- 底部发送区 -->
+                <Grid DockPanel.Dock="Bottom" Margin="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" x:Name="SendBox"
+                             Height="70"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"
+                             Text="{Binding SendText, UpdateSourceTrigger=PropertyChanged}"
+                             PreviewKeyDown="SendBox_PreviewKeyDown"/>
+                    <dx:SimpleButton Grid.Column="1" x:Name="BtnSend" Width="34" Margin="8,0,0,0"
+                                     ToolTip="{loc:Translate 发送}"
+                                     Glyph="{dx:SvgImageSource Uri='/Assets/Icons/send.svg'}"
+                                     GlyphWidth="16" GlyphHeight="16"
+                                     Command="{Binding SendCommand}"/>
+                </Grid>
+
+                <!-- 日志列表：绑定当前选中设备自己的集合 -->
+                <ListBox x:Name="LogList"
+                         ItemsSource="{Binding CurrentLogEntries}"
+                         Background="#E8E8E8"
+                         BorderBrush="#CCCCCC"
+                         BorderThickness="1"
+                         Margin="8"
+                         FontSize="13"
+                         PreviewMouseWheel="LogList_PreviewMouseWheel"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         VirtualizingStackPanel.IsVirtualizing="True"
+                         VirtualizingStackPanel.VirtualizationMode="Recycling">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Bd" Padding="6,1"
+                                                Background="Transparent"
+                                                SnapsToDevicePixels="True">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#FFF0F7FF"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#FFD3E9FD"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Time, StringFormat=HH:mm:ss}" Foreground="#888888" Margin="0,0,6,0"/>
+                                <TextBlock Text="{Binding Prefix}" Margin="0,0,6,0" FontWeight="SemiBold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{Binding DataContext.TxColor, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsTx}" Value="False">
+                                                    <Setter Property="Foreground" Value="{Binding DataContext.RxColor, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <!-- HEX 视图：仅 RX 且开启 HEX 且存在 HexText 时显示 -->
+                                <TextBlock Text="{Binding HexText}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Setter Property="Foreground" Value="{Binding DataContext.RxColor, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DataContext.IsHexDisplay, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="False">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding HexText}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <!-- ASCII 文本视图：HEX 关闭，或无 HexText（TX 条目）时显示 -->
+                                <TextBlock Text="{Binding Text}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Setter Property="Foreground" Value="{Binding DataContext.TxColor, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DataContext.IsHexDisplay, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="False">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding HexText}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+            </DockPanel>
+        </dx:DXTabItem>
+
+        <!-- 其余 Tab 占位 -->
+        <dx:DXTabItem Header="{loc:Translate 设备信息}">
+            <TextBlock Text="{loc:Translate 串口参数配置（待实现）}" Foreground="#888888" Margin="8"/>
+        </dx:DXTabItem>
+        <dx:DXTabItem Header="{loc:Translate 参数配置}">
+            <TextBlock Text="{loc:Translate 串口参数配置（待实现）}" Foreground="#888888" Margin="8"/>
+        </dx:DXTabItem>
+        <dx:DXTabItem Header="{loc:Translate 规则}">
+            <TextBlock Text="{loc:Translate 规则（待实现）}" Foreground="#888888" Margin="8"/>
+        </dx:DXTabItem>
+        <dx:DXTabItem Header="{loc:Translate 图表}">
+            <TextBlock Text="{loc:Translate 规则（待实现）}" Foreground="#888888" Margin="8"/>
+        </dx:DXTabItem>
+    </dx:DXTabControl>
+</UserControl>

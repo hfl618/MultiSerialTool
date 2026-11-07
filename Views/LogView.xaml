@@ -1,0 +1,117 @@
+<UserControl x:Class="MultiSerialTool.Views.LogView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <loc:LocConverter x:Key="LocConverter"/>
+    </UserControl.Resources>
+
+    <DockPanel Margin="8">
+        <!-- 工具条 -->
+        <Border DockPanel.Dock="Top" Background="#EFEFEF"
+                BorderBrush="#CCCCCC" BorderThickness="0,0,0,1" Padding="8,4">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{loc:Translate 级别：}" VerticalAlignment="Center"/>
+                    <ComboBox Width="90" Margin="0,0,12,0"
+                              ItemsSource="{Binding LevelOptions}"
+                              SelectedItem="{Binding SelectedLevel}">
+                        <!-- 内部标识不变，仅显示层翻译 -->
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource LocConverter}}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <dx:SimpleButton Content="{loc:Translate 清空}" Width="60" Margin="0,0,8,0"
+                                     Command="{Binding ClearCommand}"/>
+                    <dx:SimpleButton Content="{loc:Translate 打开日志目录}" Width="100"
+                                     Command="{Binding OpenFolderCommand}"/>
+                </StackPanel>
+
+                <!-- 路径显示与切换 -->
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <TextBlock Text="{loc:Translate 日志路径：}" VerticalAlignment="Center"/>
+                    <TextBox IsReadOnly="True" MinWidth="300" Margin="0,0,8,0"
+                             Text="{Binding CurrentLogDirectory, Mode=OneWay}"
+                             VerticalAlignment="Center"/>
+                    <dx:SimpleButton Content="{loc:Translate 选择目录}" Width="70" Margin="0,0,8,0"
+                                     Command="{Binding BrowseFolderCommand}"/>
+                    <dx:SimpleButton Content="{loc:Translate 恢复默认}" Width="70"
+                                     Command="{Binding ResetFolderCommand}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- 日志列表 -->
+        <ListBox ItemsSource="{Binding EntriesView}"
+                 Background="#FFFFFF"
+                 BorderBrush="#CCCCCC"
+                 BorderThickness="1"
+                 FontSize="13"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 VirtualizingStackPanel.IsVirtualizing="True"
+                 VirtualizingStackPanel.VirtualizationMode="Recycling">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="Margin" Value="0"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Border x:Name="Bd" Padding="6,1"
+                                        Background="Transparent"
+                                        SnapsToDevicePixels="True">
+                                    <ContentPresenter/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bd" Property="Background" Value="#F0F7FF"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Bd" Property="Background" Value="#D3E9FD"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Time, StringFormat=HH:mm:ss.fff}"
+                                   Foreground="#888888" Margin="0,0,8,0"/>
+                        <TextBlock Text="{Binding LevelText}" Margin="0,0,8,0"
+                                   FontWeight="SemiBold" MinWidth="45">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#666666"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding LevelText}" Value="INFO">
+                                            <Setter Property="Foreground" Value="#1A72BB"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding LevelText}" Value="WARN">
+                                            <Setter Property="Foreground" Value="#D9822B"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding LevelText}" Value="ERROR">
+                                            <Setter Property="Foreground" Value="#D32F2F"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding Source}" Foreground="#8B5CF6" Margin="0,0,8,0" MinWidth="60"/>
+                        <TextBlock Text="{Binding DisplayText}"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </DockPanel>
+</UserControl>

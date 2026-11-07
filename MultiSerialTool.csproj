@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DevExpress.Images" Version="24.2.8" />
+    <PackageReference Include="devexpress.wpf.carousel" Version="24.2.8" />
+    <PackageReference Include="DevExpress.Wpf.LayoutControl" Version="24.2.8" />
+    <PackageReference Include="devexpress.wpf.ribbon" Version="24.2.8" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Icons\*.svg" />
+    <!-- 语言包作为静态资源嵌入程序集，运行时通过 pack URI 读取，不依赖外部文件 -->
+    <Resource Include="Assets\Languages\*.json" />
+  </ItemGroup>
+
+</Project>

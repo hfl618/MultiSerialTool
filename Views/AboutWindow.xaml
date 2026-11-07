@@ -1,0 +1,47 @@
+<Window x:Class="MultiSerialTool.Views.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
+        mc:Ignorable="d"
+        Title="{loc:Translate 版本}"
+        Width="440" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F5F5F5" Foreground="#222222">
+    <StackPanel Margin="20">
+        <!-- 名字 -->
+        <TextBlock Text="{Binding AppName}" FontSize="24" FontWeight="Bold"/>
+
+        <!-- 版本号 -->
+        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+            <TextBlock Text="{loc:Translate 版本号：}" Margin="0,0,4,0"/>
+            <TextBlock Text="{Binding Version}"/>
+        </StackPanel>
+
+        <!-- GitHub 地址 -->
+        <TextBlock Margin="0,16,0,4" Text="{loc:Translate GitHub 地址：}"/>
+        <TextBlock>
+            <Hyperlink NavigateUri="{Binding GitHubUrl}" RequestNavigate="Hyperlink_RequestNavigate">
+                <TextBlock Text="{Binding GitHubUrl}"/>
+            </Hyperlink>
+        </TextBlock>
+
+        <!-- 更新内容 -->
+        <TextBlock Margin="0,16,0,6" Text="{loc:Translate 更新内容：}" FontWeight="SemiBold"/>
+        <ItemsControl ItemsSource="{Binding UpdateNotes}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                        <TextBlock Text="•" Margin="0,0,6,0"/>
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="370"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Button Content="{loc:Translate 确定}" Width="80" HorizontalAlignment="Right"
+                Margin="0,20,0,0" Padding="12,4" Click="Close_Click"/>
+    </StackPanel>
+</Window>
