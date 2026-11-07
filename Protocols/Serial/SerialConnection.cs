@@ -25,6 +25,7 @@ public sealed class SerialConnection : IDisposable
     private const int MaxBufferedBytes = 1024 * 1024;
 
     private readonly string _portName;
+    private readonly int _preferredBaudRate;
     private SerialPort? _port;
 
     /// <summary>原始字节流缓冲，线程安全</summary>
@@ -42,9 +43,15 @@ public sealed class SerialConnection : IDisposable
     /// <summary>当前实际生效的波特率（探测完成后回填）</summary>
     public int BaudRate { get; private set; }
 
-    public SerialConnection(string portName)
+    /// <param name="portName">端口名</param>
+    /// <param name="preferredBaudRate">
+    /// 设备指定/用户配置的优先波特率。自动探测全程无有效数据（设备不主动上报）时
+    /// 保留该速率，不再盲目回退固定 9600，避免误判导致连接后乱码、收发失败。
+    /// </param>
+    public SerialConnection(string portName, int preferredBaudRate = 9600)
     {
         _portName = portName;
+        _preferredBaudRate = preferredBaudRate > 0 ? preferredBaudRate : 9600;
     }
 
     /// <summary>
@@ -53,7 +60,7 @@ public sealed class SerialConnection : IDisposable
     /// </summary>
     public void Open()
     {
-        BaudRate = DetectBaudRate(_portName);
+        BaudRate = DetectBaudRate(_portName, _preferredBaudRate);
 
         _port = CreatePort(_portName, BaudRate);
         _port.Open();
@@ -96,11 +103,12 @@ public sealed class SerialConnection : IDisposable
 
     /// <summary>
     /// 自动波特率探测：逐速率打开监听，按接收数据质量评分，取最高分。
-    /// 全程无有效数据时回退 9600。
+    /// 全程无有效数据（所有候选评分均为 0，常见于设备不主动上报）时，
+    /// 保留调用方指定的优先波特率 preferredBaudRate，而非固定回退 9600。
     /// </summary>
-    private static int DetectBaudRate(string portName)
+    private static int DetectBaudRate(string portName, int preferredBaudRate)
     {
-        int bestBaud = 9600;
+        int bestBaud = preferredBaudRate;
         int bestScore = 0;
 
         foreach (int baud in CandidateBaudRates)

@@ -1,0 +1,116 @@
+<UserControl x:Class="MultiSerialTool.Protocols.Serial.RuleEditorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
+             mc:Ignorable="d"
+             d:DesignHeight="560" d:DesignWidth="820">
+    <dxlc:LayoutControl Orientation="Vertical" ItemSpace="10" Margin="8">
+
+        <!-- ========== 分组1：参数解析规则 ========== -->
+        <dxlc:LayoutGroup Header="{loc:Translate 参数解析规则}"
+                          View="GroupBox" Orientation="Vertical">
+
+            <!-- 设备类型下拉：选项来自 DeviceRules 目录下的规则文件名 -->
+            <dxlc:LayoutItem Label="{loc:Translate 设备类型}">
+                <dxe:ComboBoxEdit ItemsSource="{Binding DeviceTypeOptions}"
+                                  SelectedItem="{Binding SelectedDeviceType}"
+                                  IsTextEditable="False"/>
+            </dxlc:LayoutItem>
+
+            <!-- 设备参数解析卡片列表 -->
+            <dxlc:LayoutItem Label="{x:Null}">
+                <StackPanel>
+                    <TextBlock Text="{loc:Translate 设备参数解析}"
+                               FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ItemsControl ItemsSource="{Binding CurrentRule.Fields}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#F7F9FC" BorderBrush="#E0E6EF"
+                                        BorderThickness="1" CornerRadius="3"
+                                        Padding="8,5" Margin="0,0,0,4">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Label}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Query}" Foreground="#1A72BB"/>
+                                        <TextBlock Text="{Binding Parse.Summary, FallbackValue=-}"
+                                                   Foreground="#777777"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <!-- 预览样例 -->
+            <dxlc:LayoutItem Label="{x:Null}">
+                <StackPanel>
+                    <TextBlock Text="{loc:Translate 预览样例}"
+                               FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <dxe:TextEdit Text="{Binding SampleText, Mode=OneWay}"
+                                  IsReadOnly="True"
+                                  TextWrapping="Wrap"
+                                  MinHeight="70"/>
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+        </dxlc:LayoutGroup>
+
+        <!-- ========== 分组2：自动应答规则 ========== -->
+        <dxlc:LayoutGroup Header="{loc:Translate 自动应答规则}"
+                          View="GroupBox" Orientation="Vertical">
+
+            <!-- 第一行：按钮行 -->
+            <dxlc:LayoutItem Label="{x:Null}">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <Button Content="{loc:Translate 新增}"
+                            Command="{Binding AddAutoReplyCommand}"
+                            Width="72" Margin="0,0,8,0" Padding="6,3"/>
+                    <Button Content="{loc:Translate 删除}"
+                            Command="{Binding DeleteAutoReplyCommand}"
+                            Width="72" Padding="6,3"/>
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <!-- 第二行：自动应答规则表格 -->
+            <dxlc:LayoutItem Label="{x:Null}">
+                <DataGrid ItemsSource="{Binding AutoReplyRules}"
+                          SelectedItem="{Binding SelectedAutoReply}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          CanUserResizeColumns="True"
+                          SelectionMode="Single"
+                          MinHeight="180"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto"
+                          GridLinesVisibility="All"
+                          HeadersVisibility="Column">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{loc:Translate 序号}"
+                                            Binding="{Binding Index}"
+                                            IsReadOnly="True"
+                                            Width="60" MinWidth="50"/>
+                        <DataGridTextColumn Header="{loc:Translate 命令}"
+                                            Binding="{Binding Command, UpdateSourceTrigger=PropertyChanged}"
+                                            Width="180" MinWidth="120"/>
+                        <DataGridTextColumn Header="{loc:Translate 预期}"
+                                            Binding="{Binding Expected, UpdateSourceTrigger=PropertyChanged}"
+                                            Width="160" MinWidth="100"/>
+                        <DataGridTextColumn Header="{loc:Translate 操作}"
+                                            Binding="{Binding Operation, UpdateSourceTrigger=PropertyChanged}"
+                                            Width="100" MinWidth="80"/>
+                        <DataGridTextColumn Header="{loc:Translate 实际回复}"
+                                            Binding="{Binding ActualReply, UpdateSourceTrigger=PropertyChanged}"
+                                            Width="*" MinWidth="140"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </dxlc:LayoutItem>
+
+        </dxlc:LayoutGroup>
+
+    </dxlc:LayoutControl>
+</UserControl>

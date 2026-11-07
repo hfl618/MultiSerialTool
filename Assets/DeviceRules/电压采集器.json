@@ -1,0 +1,44 @@
+{
+  "deviceType": "电压采集器",
+  "fields": [
+    {
+      "key": "addr",
+      "label": "设备地址",
+      "query": "01 03 00 00 00 01 84 0A",
+      "parse": { "type": "offset", "offset": 3, "length": 2 },
+      "refresh": true
+    }
+  ],
+  "charts": [
+    {
+      "key": "voltage",
+      "label": "电压",
+      "parse": { "type": "offset", "offset": 3, "length": 2, "scale": 0.1, "unit": "V" }
+    },
+    {
+      "key": "current",
+      "label": "电流",
+      "parse": { "type": "offset", "offset": 5, "length": 2, "scale": 0.01, "unit": "A" }
+    }
+  ],
+  "autoReplies": [
+    {
+      "index": 1,
+      "command": "01 03 00 00 00 01 84 0A",
+      "expected": "地址01 功能码03 读1个保持寄存器",
+      "operation": "自动回复",
+      "actualReply": "01 03 02 00 7A 39 A7"
+    },
+    {
+      "index": 2,
+      "command": "01 04 00 00 00 02 71 CB",
+      "expected": "地址01 功能码04 读2个输入寄存器",
+      "operation": "自动回复",
+      "actualReply": "01 04 04 00 7A 00 C8 DB CB"
+    }
+  ],
+  "sample": {
+    "request": "01 03 00 00 00 01 84 0A",
+    "response": "01 03 02 00 7A 39 A7"
+  }
+}

@@ -59,6 +59,9 @@
                 <dxb:BarSubItem Content="{loc:Translate 文件}">
                     <dxb:BarButtonItem Content="{loc:Translate 打开}"/>
                 </dxb:BarSubItem>
+                <dxb:BarSubItem Content="{loc:Translate 仪器}">
+                    <dxb:BarButtonItem Content="{loc:Translate 示波器}"/>
+                </dxb:BarSubItem>
                 <dxb:BarSubItem Content="{loc:Translate 帮助}">
                     <dxb:BarButtonItem Content="{loc:Translate 设置}" Command="{Binding ShowSettingsCommand}"/>
                     <dxb:BarButtonItem Content="LOG" Command="{Binding ShowLogCommand}"/>
@@ -81,7 +84,8 @@
                     <dxb:BarDockInfo ContainerType="Bottom"/>
                 </dxb:Bar.DockInfo>
                 <dxb:BarStaticItem x:Name="StatusMessage" Content="{loc:Translate 就绪}"/>
-                <dxb:BarStaticItem x:Name="ClockItem" Content="00：00" Alignment="Far"/>
+                <dxb:BarStaticItem x:Name="ClockItem" Content="--" Alignment="Far"
+                                   ToolTip="{loc:Translate 测试记录时间}"/>
             </dxb:Bar>
         </dxb:BarManager.Bars>
 

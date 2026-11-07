@@ -4,7 +4,10 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
              xmlns:local="clr-namespace:MultiSerialTool.Protocols.Serial"
+             xmlns:views="clr-namespace:MultiSerialTool.Views"
              xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
@@ -47,7 +50,8 @@
                         <StackPanel Grid.Column="2" Orientation="Horizontal">
                             <dx:SimpleButton x:Name="BtnFind" Margin="4,0" ToolTip="{loc:Translate 查找}"
                              Glyph="{dx:SvgImageSource Uri='/Assets/Icons/find.svg'}"
-                             GlyphWidth="16" GlyphHeight="16"/>
+                             GlyphWidth="16" GlyphHeight="16"
+                             Click="BtnFind_Click"/>
                             <dx:SimpleButton x:Name="BtnClear" Margin="4,0" ToolTip="{loc:Translate 清空}"
                              Glyph="{dx:SvgImageSource Uri='/Assets/Icons/clear.svg'}"
                              GlyphWidth="16" GlyphHeight="16"
@@ -86,10 +90,10 @@
                          BorderThickness="1"
                          Margin="8"
                          FontSize="13"
+                         SelectionMode="Extended"
                          PreviewMouseWheel="LogList_PreviewMouseWheel"
-                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                         VirtualizingStackPanel.IsVirtualizing="True"
-                         VirtualizingStackPanel.VirtualizationMode="Recycling">
+                         PreviewKeyDown="LogList_PreviewKeyDown"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
                             <Setter Property="Margin" Value="0"/>
@@ -119,7 +123,7 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="{Binding Time, StringFormat=HH:mm:ss}" Foreground="#888888" Margin="0,0,6,0"/>
+                                <TextBlock Text="{Binding Time, StringFormat='{}{0:[yyyy-MM-dd HH:mm:ss]}'}" FontWeight="Normal" Foreground="#888888" Margin="0,0,6,0"/>
                                 <TextBlock Text="{Binding Prefix}" Margin="0,0,6,0" FontWeight="SemiBold">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
@@ -176,18 +180,56 @@
             </DockPanel>
         </dx:DXTabItem>
 
-        <!-- 其余 Tab 占位 -->
+        <!-- 设备信息：固定端口信息 + 独立设备参数视图 -->
         <dx:DXTabItem Header="{loc:Translate 设备信息}">
-            <TextBlock Text="{loc:Translate 串口参数配置（待实现）}" Foreground="#888888" Margin="8"/>
+            <dxlc:LayoutControl Orientation="Vertical" ItemSpace="10">
+
+                <!-- 固定分组：端口信息（字段固定，直接绑定当前设备，不经过配置） -->
+                <dxlc:LayoutGroup Header="{loc:Translate 端口信息}"
+                                  View="GroupBox" Orientation="Vertical">
+                    <!-- 第一行：端口完整友好名单独占满 -->
+                    <dxlc:LayoutItem Label="{loc:Translate 端口名}">
+                        <dxe:TextEdit Text="{Binding Device.DisplayName, Mode=OneWay}" IsReadOnly="True"/>
+                    </dxlc:LayoutItem>
+                    <!-- 第二行：类型、地址、波特率、校验位水平均分 -->
+                    <dxlc:LayoutGroup Orientation="Horizontal">
+                        <dxlc:LayoutItem Label="{loc:Translate 类型}">
+                            <dxe:TextEdit Text="{Binding Device.Type, Mode=OneWay}" IsReadOnly="True"/>
+                        </dxlc:LayoutItem>
+                        <dxlc:LayoutItem Label="{loc:Translate 地址}">
+                            <dxe:TextEdit Text="{Binding Device.Address, Mode=OneWay}" IsReadOnly="True"/>
+                        </dxlc:LayoutItem>
+                        <dxlc:LayoutItem Label="{loc:Translate 波特率}">
+                            <dxe:TextEdit Text="{Binding Device.BaudRate, Mode=OneWay}" IsReadOnly="True"/>
+                        </dxlc:LayoutItem>
+                        <dxlc:LayoutItem Label="{loc:Translate 校验位}">
+                            <dxe:TextEdit IsReadOnly="True"/>
+                        </dxlc:LayoutItem>
+                        <dxlc:LayoutItem Label="{loc:Translate 厂商}">
+                            <dxe:TextEdit Text="{Binding Device.Manufacturer, Mode=OneWay}" IsReadOnly="True"/>
+                        </dxlc:LayoutItem>
+                        <dxlc:LayoutItem Label="VID">
+                            <dxe:TextEdit Text="{Binding Device.Vid, Mode=OneWay}" IsReadOnly="True"/>
+                        </dxlc:LayoutItem>
+                        <dxlc:LayoutItem Label="PID">
+                            <dxe:TextEdit Text="{Binding Device.Pid, Mode=OneWay}" IsReadOnly="True"/>
+                        </dxlc:LayoutItem>
+                    </dxlc:LayoutGroup>
+                </dxlc:LayoutGroup>
+
+                <!-- 设备参数：独立视图，当前仅容器框架，后续在该 View 内扩展 -->
+                <local:DeviceParametersView/>
+
+            </dxlc:LayoutControl>
         </dx:DXTabItem>
         <dx:DXTabItem Header="{loc:Translate 参数配置}">
             <TextBlock Text="{loc:Translate 串口参数配置（待实现）}" Foreground="#888888" Margin="8"/>
         </dx:DXTabItem>
         <dx:DXTabItem Header="{loc:Translate 规则}">
-            <TextBlock Text="{loc:Translate 规则（待实现）}" Foreground="#888888" Margin="8"/>
+            <local:RuleEditorView/>
         </dx:DXTabItem>
         <dx:DXTabItem Header="{loc:Translate 图表}">
-            <TextBlock Text="{loc:Translate 规则（待实现）}" Foreground="#888888" Margin="8"/>
+            <views:ChartView/>
         </dx:DXTabItem>
     </dx:DXTabControl>
 </UserControl>

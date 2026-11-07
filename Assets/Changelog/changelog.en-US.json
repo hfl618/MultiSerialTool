@@ -1,0 +1,37 @@
+[
+  {
+    "version": "1.0.0",
+    "date": "2026-11-08",
+    "notes": [
+      "Status bar clock is now synchronized in real time, refreshing every second with full date and time",
+      "The clock shares the same source as logs (local system time) and can be used as the test record time baseline",
+      "Added serial hot-plug: device list auto-reffreshes on plug/unplug with 500ms debounce",
+      "Added auto-reconnect: a connected device is reconnected by VID/PID after reinsertion; manual disconnect disables it",
+      "Hardened repeated hot-plug stability: rapid plug cycles inside the debounce window rebuild the stale handle, and reconnect waits for in-flight probing to finish to avoid port contention"
+    ]
+  },
+  {
+    "version": "1.2.0",
+    "date": "2026-11-07",
+    "notes": [
+      "Added multi-language switching with runtime hot-swap between Chinese and English",
+      "Added scrollable version history",
+      "Improved UI refresh; switching language keeps connections and data"
+    ]
+  },
+  {
+    "version": "1.1.0",
+    "date": "2026-10-20",
+    "notes": [
+      "Added multi-serial, TCP and MQTT protocol framework",
+      "Added customizable log directory with reset to default"
+    ]
+  },
+  {
+    "version": "1.0.0",
+    "date": "2026-09-30",
+    "notes": [
+      "First official release with multi-serial communication and logging"
+    ]
+  }
+]

@@ -36,8 +36,42 @@ public class SerialWorkspaceViewModel : ViewModelBase
         }
     }
 
-    /// <summary>当前设备的日志集合，未选中设备时为 null</summary>
+    /// <summary>当前设备的日志集合，未选中设备时为 null；图表不使用此属性</summary>
     public ObservableCollection<LogEntry>? CurrentLogEntries => _device?.LogEntries;
+
+    private ObservableCollection<SerialDeviceInfo> _availableDevices = new();
+    /// <summary>本机全部串口设备（与 SerialViewModel.Devices 同一引用），供图表下拉选择</summary>
+    public ObservableCollection<SerialDeviceInfo> AvailableDevices
+    {
+        get => _availableDevices;
+        private set => SetProperty(ref _availableDevices, value);
+    }
+
+    private SerialDeviceInfo? _chartDevice;
+    /// <summary>
+    /// 图表专用数据源设备，独立于左侧选中行（可锁定接收口）。
+    /// 切换它不影响发送区与左侧选择，只改变图表解析哪个串口的数据。
+    /// </summary>
+    public SerialDeviceInfo? ChartSelectedDevice
+    {
+        get => _chartDevice;
+        set
+        {
+            if (SetProperty(ref _chartDevice, value))
+                RaisePropertyChanged(nameof(ChartLogEntries));
+        }
+    }
+
+    /// <summary>图表当前解析的设备日志集合</summary>
+    public ObservableCollection<LogEntry>? ChartLogEntries => _chartDevice?.LogEntries;
+
+    /// <summary>注入串口设备集合（同一引用，热插拔增删自动反映）</summary>
+    public void AttachDevices(ObservableCollection<SerialDeviceInfo> devices)
+    {
+        AvailableDevices = devices;
+        if (_chartDevice is null && devices.Count > 0)
+            ChartSelectedDevice = devices[0];
+    }
 
     /// <summary>当前设备状态栏文本</summary>
     public string CurrentStatusText =>
@@ -82,11 +116,23 @@ public class SerialWorkspaceViewModel : ViewModelBase
         set => SetProperty(ref _rxColor, value);
     }
 
+    /// <summary>
+    /// 设备信息界面的分组定义集合（端口信息/设备信息/电参数等）。
+    /// 当前由占位数据构造，后续改为配置文件解析结果，界面绑定无需修改。
+    /// </summary>
+    public ObservableCollection<DeviceFieldGroup> DeviceFieldGroups { get; } = new();
+
     /// <summary>发送命令</summary>
     public RelayCommand SendCommand { get; }
 
     /// <summary>清空当前设备日志</summary>
     public RelayCommand ClearLogCommand { get; }
+
+    /// <summary>
+    /// 单字段刷新命令：参数为被点击的字段定义。
+    /// TODO: 后续按 field.Key 向设备下发查询指令并回填 Value。
+    /// </summary>
+    public RelayCommand<DeviceField> RefreshFieldCommand { get; }
 
     /// <summary>发送内容提交时触发，由外层 ViewModel 写入真实端口</summary>
     public event Action<string>? TxSubmitted;
@@ -96,7 +142,41 @@ public class SerialWorkspaceViewModel : ViewModelBase
         LogService.Current.Debug("Serial", "Init", "SerialWorkspaceViewModel 已创建");
         SendCommand = new RelayCommand(Send);
         ClearLogCommand = new RelayCommand(ClearLog);
+        RefreshFieldCommand = new RelayCommand<DeviceField>(RefreshField);
+        BuildPlaceholderLayout();
         LocalizationService.Instance.PropertyChanged += OnLanguageChanged;
+    }
+
+    /// <summary>
+    /// 占位布局：仅保留一个空的「设备参数」分组，字段后续由配置文件解析填充。
+    /// （端口信息为固定字段，在 XAML 中静态实现，不在此集合内。）
+    /// </summary>
+    private void BuildPlaceholderLayout()
+    {
+        DeviceFieldGroups.Add(new DeviceFieldGroup
+        {
+            Title = "设备参数"
+        });
+    }
+
+    /// <summary>
+    /// 配置文件加载入口（待实现）：解析配置后重建 DeviceFieldGroups。
+    /// TODO: 读取 JSON/XML 配置 → 映射为 DeviceFieldGroup 列表 → 清空并重新填充。
+    /// </summary>
+    private void LoadDeviceViewConfig()
+    {
+        // 后续实现：DeviceFieldGroups.Clear(); 然后按配置 Add。
+    }
+
+    /// <summary>单字段刷新占位实现，后续在此按 Key 下发查询指令。</summary>
+    private void RefreshField(DeviceField? field)
+    {
+        if (field is null)
+            return;
+
+        LogService.Current.Debug("Serial", "RefreshField",
+            $"刷新字段请求：{field.Key}（逻辑待实现）");
+        // TODO: 按 field.Key 发送查询帧，收到响应后回填 field.Value。
     }
 
     private void OnLanguageChanged(object? sender, PropertyChangedEventArgs e)

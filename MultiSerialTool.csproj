@@ -6,20 +6,53 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+
+    <!-- 版本号单一来源：改这里即可全局更新 exe 文件名与所有显示名 -->
+    <Version>1.0.0</Version>
+    <!-- 输出 exe 名：MultiSerialTool-版本号-hfl -->
+    <AssemblyName>MultiSerialTool-$(Version)-hfl</AssemblyName>
+    <!-- exe 文件属性（右键 → 属性 → 详细信息） -->
+    <Product>MultiSerialTool-$(Version)-hfl</Product>
+    <AssemblyTitle>MultiSerialTool-$(Version)-hfl</AssemblyTitle>
+    <Company>hfl</Company>
   </PropertyGroup>
+
+  <!-- Tests 是独立子项目，其源码与 obj 下自动生成的 AssemblyInfo 不得被主项目默认 glob 编译，否则 CS0579 重复特性 -->
+  <ItemGroup>
+    <Compile Remove="Tests\**\*.cs" />
+    <Page Remove="Tests\**\*.xaml" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="DevExpress.Images" Version="24.2.8" />
     <PackageReference Include="devexpress.wpf.carousel" Version="24.2.8" />
+    <PackageReference Include="DevExpress.Wpf.Charts" Version="24.2.8" />
     <PackageReference Include="DevExpress.Wpf.LayoutControl" Version="24.2.8" />
     <PackageReference Include="devexpress.wpf.ribbon" Version="24.2.8" />
     <PackageReference Include="System.IO.Ports" Version="10.0.14" />
+    <PackageReference Include="System.Management" Version="10.0.14" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Assets\Icons\*.svg" />
     <!-- 语言包作为静态资源嵌入程序集，运行时通过 pack URI 读取，不依赖外部文件 -->
     <Resource Include="Assets\Languages\*.json" />
+  </ItemGroup>
+
+  <!-- 版本更新历史：复制到输出目录 Changelog，可外部替换，改 JSON 即生效、无需重新编译 -->
+  <ItemGroup>
+    <None Include="Assets\Changelog\*.json">
+      <Link>Changelog\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- 设备解析规则：复制到输出目录 DeviceRules，下拉框按文件名扫描，可外部增删替换 -->
+  <ItemGroup>
+    <None Include="Assets\DeviceRules\*.json">
+      <Link>DeviceRules\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

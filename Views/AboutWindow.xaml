@@ -5,43 +5,72 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
         mc:Ignorable="d"
-        Title="{loc:Translate 版本}"
-        Width="440" SizeToContent="Height"
+        Title="{Binding AppName}"
+        Width="460" Height="560"
+        MinWidth="400" MinHeight="420"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
+        ResizeMode="CanResize"
         Background="#F5F5F5" Foreground="#222222">
-    <StackPanel Margin="20">
-        <!-- 名字 -->
-        <TextBlock Text="{Binding AppName}" FontSize="24" FontWeight="Bold"/>
+    <DockPanel Margin="20" LastChildFill="True">
 
-        <!-- 版本号 -->
-        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-            <TextBlock Text="{loc:Translate 版本号：}" Margin="0,0,4,0"/>
-            <TextBlock Text="{Binding Version}"/>
+        <!-- 顶部固定信息：名字、当前版本、GitHub -->
+        <StackPanel DockPanel.Dock="Top">
+            <TextBlock Text="{Binding AppName}" FontSize="24" FontWeight="Bold"/>
+
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <TextBlock Text="{loc:Translate 版本号：}" Margin="0,0,4,0"/>
+                <TextBlock Text="{Binding Version}"/>
+            </StackPanel>
+
+            <TextBlock Margin="0,14,0,4" Text="{loc:Translate GitHub 地址：}"/>
+            <TextBlock>
+                <Hyperlink NavigateUri="{Binding GitHubUrl}" RequestNavigate="Hyperlink_RequestNavigate">
+                    <TextBlock Text="{Binding GitHubUrl}"/>
+                </Hyperlink>
+            </TextBlock>
+
+            <TextBlock Margin="0,16,0,8" Text="{loc:Translate 更新内容：}" FontWeight="SemiBold"/>
         </StackPanel>
 
-        <!-- GitHub 地址 -->
-        <TextBlock Margin="0,16,0,4" Text="{loc:Translate GitHub 地址：}"/>
-        <TextBlock>
-            <Hyperlink NavigateUri="{Binding GitHubUrl}" RequestNavigate="Hyperlink_RequestNavigate">
-                <TextBlock Text="{Binding GitHubUrl}"/>
-            </Hyperlink>
-        </TextBlock>
+        <!-- 底部固定按钮 -->
+        <Button DockPanel.Dock="Bottom"
+                Content="{loc:Translate 确定}" Width="80"
+                HorizontalAlignment="Right" Margin="0,16,0,0"
+                Padding="12,4" Click="Close_Click"/>
 
-        <!-- 更新内容 -->
-        <TextBlock Margin="0,16,0,6" Text="{loc:Translate 更新内容：}" FontWeight="SemiBold"/>
-        <ItemsControl ItemsSource="{Binding UpdateNotes}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Orientation="Horizontal" Margin="0,2">
-                        <TextBlock Text="•" Margin="0,0,6,0"/>
-                        <TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="370"/>
-                    </StackPanel>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <!-- 中间可滚动的历史版本卡片 -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Releases}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,0,0,12" Padding="10"
+                                Background="White" CornerRadius="4">
+                            <StackPanel>
+                                <!-- 版本号 + 发布日期 -->
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Version}" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding Date}" Margin="10,0,0,0"
+                                               Foreground="#888888" VerticalAlignment="Center"/>
+                                </StackPanel>
 
-        <Button Content="{loc:Translate 确定}" Width="80" HorizontalAlignment="Right"
-                Margin="0,20,0,0" Padding="12,4" Click="Close_Click"/>
-    </StackPanel>
+                                <!-- 该版本更新条目 -->
+                                <ItemsControl ItemsSource="{Binding Notes}" Margin="0,6,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                                                <TextBlock Text="•" Margin="0,0,6,0"/>
+                                                <TextBlock Text="{Binding}"
+                                                           TextWrapping="Wrap" MaxWidth="380"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
 </Window>

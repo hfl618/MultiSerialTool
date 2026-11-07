@@ -9,6 +9,15 @@ public class AppConfig
     /// <summary>用户自定义日志目录；为空时使用默认的 %LocalAppData%\MultiSerialTool\Logs</summary>
     public string? LogDirectory { get; set; }
 
+    /// <summary>上次保存的图表规则文本（粘贴框内容）；为空时不自动重建图表</summary>
+    public string? ChartRuleText { get; set; }
+
+    /// <summary>
+    /// 串口消息组包的空闲间隔（毫秒）：间隔小于该值的连续数据视为同一条消息合并，
+    /// 超过则封帧。默认 30ms；设备上报较慢、字节间隔偏大时可适当调大。
+    /// </summary>
+    public int MessageIdleGapMs { get; set; } = 30;
+
     /// <summary>配置文件所在目录</summary>
     public static string ConfigDirectory { get; } = System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

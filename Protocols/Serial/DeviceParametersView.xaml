@@ -1,0 +1,21 @@
+<UserControl x:Class="MultiSerialTool.Protocols.Serial.DeviceParametersView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <dxlc:LayoutControl Orientation="Vertical" ItemSpace="10">
+
+        <!-- 设备参数容器框架：字段后续直接在组内添加，暂不做动态规则 -->
+        <dxlc:LayoutGroup Header="{loc:Translate 设备参数}"
+                          View="GroupBox" Orientation="Vertical"
+                          MinHeight="120">
+            <TextBlock Text="{loc:Translate （待实现）}"
+                       Foreground="#888888" Margin="4"/>
+        </dxlc:LayoutGroup>
+
+    </dxlc:LayoutControl>
+</UserControl>

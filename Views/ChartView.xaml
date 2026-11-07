@@ -1,0 +1,105 @@
+<UserControl x:Class="MultiSerialTool.Views.ChartView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxc="http://schemas.devexpress.com/winfx/2008/xaml/charts"
+             xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
+             mc:Ignorable="d"
+             d:DesignHeight="650" d:DesignWidth="950"
+             Background="#F5F5F5" Foreground="#222222">
+    <UserControl.Resources>
+        <loc:LocConverter x:Key="LocConverter"/>
+    </UserControl.Resources>
+
+    <DockPanel Margin="8">
+        <!-- ========== 顶部工具条（SVG 图标按钮） ========== -->
+        <Border DockPanel.Dock="Top" Background="#EFEFEF"
+                BorderBrush="#CCCCCC" BorderThickness="1"
+                Padding="8,6">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{loc:Translate 数据源：}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <ComboBox x:Name="DeviceSourceBox" Width="200" Margin="0,0,12,0"
+                          ItemsSource="{Binding AvailableDevices}"
+                          DisplayMemberPath="DisplayName"
+                          SelectedItem="{Binding ChartSelectedDevice, Mode=TwoWay}"
+                          ToolTip="{loc:Translate 选择图表解析哪个串口，独立于左侧选中行}"/>
+
+                <TextBlock Text="{loc:Translate 解析模式：}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <ComboBox x:Name="ModeBox" Width="110" Margin="0,0,12,0" SelectedIndex="0">
+                    <ComboBoxItem Content="{loc:Translate 文本日志}"/>
+                    <ComboBoxItem Content="{loc:Translate 485}"/>
+                    <ComboBoxItem Content="{loc:Translate Modbus}"/>
+                </ComboBox>
+
+                <dx:SimpleButton x:Name="BtnParse" Margin="4,0" ToolTip="{loc:Translate 粘贴并解析}"
+                                 Glyph="{dx:SvgImageSource Uri='/Assets/Icons/refresh.svg'}"
+                                 GlyphWidth="18" GlyphHeight="18" Click="BtnParse_Click"/>
+                <dx:SimpleButton x:Name="BtnClear" Margin="4,0" ToolTip="{loc:Translate 清空}"
+                                 Glyph="{dx:SvgImageSource Uri='/Assets/Icons/clear.svg'}"
+                                 GlyphWidth="18" GlyphHeight="18" Click="BtnClear_Click"/>
+                <dx:SimpleButton x:Name="BtnExport" Margin="4,0" ToolTip="{loc:Translate 导出CSV}"
+                                 Glyph="{dx:SvgImageSource Uri='/Assets/Icons/download.svg'}"
+                                 GlyphWidth="18" GlyphHeight="18" Click="BtnExport_Click"/>
+                <dx:SimpleButton x:Name="BtnSettings" Margin="4,0" ToolTip="{loc:Translate 设置}"
+                                 Glyph="{dx:SvgImageSource Uri='/Assets/Icons/setting.svg'}"
+                                 GlyphWidth="18" GlyphHeight="18"/>
+                <dx:SimpleButton x:Name="BtnSave" Margin="4,0" ToolTip="{loc:Translate 保存配置}"
+                                 Glyph="{dx:SvgImageSource Uri='/Assets/Icons/save.svg'}"
+                                 GlyphWidth="18" GlyphHeight="18" Click="BtnSave_Click"/>
+
+                <dxe:CheckEdit x:Name="ChkAppend" Content="{loc:Translate 追加解析}" IsChecked="True"
+                                VerticalAlignment="Center" Margin="8,0,0,0"
+                                ToolTip="{loc:Translate 勾选后解析只增量补充规则，不清空已有数据}"/>
+                <dxe:CheckEdit x:Name="ChkAutoRange" Content="{loc:Translate 自动量程}" IsChecked="True"
+                                VerticalAlignment="Center" Margin="8,0,0,0"/>
+
+                <TextBlock Text="{loc:Translate 时间刻度：}" VerticalAlignment="Center" Margin="12,0,6,0"/>
+                <ComboBox x:Name="ScaleBox" Width="84" SelectedIndex="0"
+                          SelectionChanged="ScaleBox_SelectionChanged">
+                    <ComboBoxItem Content="{loc:Translate 自动}"/>
+                    <ComboBoxItem Content="{loc:Translate 秒}"/>
+                    <ComboBoxItem Content="{loc:Translate 分钟}"/>
+                    <ComboBoxItem Content="{loc:Translate 小时}"/>
+                    <ComboBoxItem Content="{loc:Translate 天}"/>
+                </ComboBox>
+            </StackPanel>
+        </Border>
+
+        <!-- ========== 粘贴输入区（可折叠，默认带模板样例） ========== -->
+        <Expander DockPanel.Dock="Top" Header="{loc:Translate 粘贴日志}"
+                  IsExpanded="True" Background="#FFFFFF"
+                  BorderBrush="#CCCCCC" BorderThickness="1" Margin="0,6,0,0">
+            <TextBox x:Name="PasteBox" Height="130" AcceptsReturn="True" TextWrapping="NoWrap"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Auto"
+                     BorderThickness="0" Background="#FFFFFF"
+                     FontFamily="Consolas" FontSize="12"
+                     Text="-----chart1 n=&quot;光伏板信息&quot;&#10;Solar voltage: {光伏电压:%.2f}/current: {光伏电流:%.2f}/power: {%.2f}&#10;-----chart2 n=&quot;电池组&quot;&#10;Battery voltage: {%.2f}/current: {%.2f}/capacity: {%d}&#10;-----chart3 n=&quot;LED信息&quot;&#10;LED voltage: {%.2f}/current: {%.2f}/power: {%.2f}&#10;-----chart4 n=&quot;信号质量&quot;&#10;RSSI: {%d}"/>
+        </Expander>
+
+        <!-- ========== 底部数据记录表（可折叠，列随解析结果动态生成） ========== -->
+        <Expander DockPanel.Dock="Bottom" Header="{loc:Translate 数据记录}"
+                  IsExpanded="False" Background="#FFFFFF"
+                  BorderBrush="#CCCCCC" BorderThickness="1" Margin="0,6,0,0">
+            <DataGrid x:Name="RecordGrid" Height="150" AutoGenerateColumns="True"
+                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                      BorderThickness="0" Background="#FFFFFF"
+                      FontSize="12" CanUserAddRows="False"
+                      AutoGeneratingColumn="RecordGrid_AutoGeneratingColumn"/>
+        </Expander>
+
+        <!-- ========== 多页图表区：页签由解析结果动态生成，无数据时显示空状态 ========== -->
+        <Grid Margin="0,6,0,0">
+            <dx:DXTabControl x:Name="ChartTabs"/>
+            <Border x:Name="EmptyState" Background="#FFFFFF">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="{loc:Translate 粘贴并解析}" FontSize="14" Foreground="#666666"/>
+                    <TextBlock Text="{loc:Translate 新增页面提示}" FontSize="12" Foreground="#999999" Margin="0,6,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </DockPanel>
+</UserControl>

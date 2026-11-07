@@ -54,9 +54,7 @@
                  BorderBrush="#CCCCCC"
                  BorderThickness="1"
                  FontSize="13"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                 VirtualizingStackPanel.IsVirtualizing="True"
-                 VirtualizingStackPanel.VirtualizationMode="Recycling">
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
                     <Setter Property="Margin" Value="0"/>

@@ -1,0 +1,46 @@
+{
+  "deviceType": "4G透传模组",
+  "fields": [
+    {
+      "key": "imei",
+      "label": "IMEI",
+      "query": "AT+CGSN\r\n",
+      "parse": { "type": "regex", "pattern": "\\d{15}" },
+      "refresh": true
+    },
+    {
+      "key": "ccid",
+      "label": "SIM卡号",
+      "query": "AT+CCID\r\n",
+      "parse": { "type": "regex", "pattern": "\\d{20}" },
+      "refresh": true
+    }
+  ],
+  "charts": [
+    {
+      "key": "csq",
+      "label": "信号强度",
+      "parse": { "type": "regex", "pattern": "\\+CSQ:\\s*(\\d+)" }
+    }
+  ],
+  "autoReplies": [
+    {
+      "index": 1,
+      "command": "AT+CGSN\r\n",
+      "expected": "查询IMEI，返回15位数字",
+      "operation": "自动回复",
+      "actualReply": "860123456789012\r\nOK"
+    },
+    {
+      "index": 2,
+      "command": "AT+CCID\r\n",
+      "expected": "查询SIM卡号，返回20位数字",
+      "operation": "自动回复",
+      "actualReply": "+CCID: 89860421802112345678\r\nOK"
+    }
+  ],
+  "sample": {
+    "request": "AT+CGSN\r\n",
+    "response": "860123456789012\r\nOK"
+  }
+}

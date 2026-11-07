@@ -12,6 +12,28 @@ public class SerialDeviceInfo : ViewModelBase
     /// <summary>串口名字（如 COM3）</summary>
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>完整友好名称（如 "Silicon Labs CP210x USB to UART Bridge (COM5)"），WMI 读取</summary>
+    public string FullName { get; set; } = string.Empty;
+
+    /// <summary>设备描述（WMI Description）</summary>
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>厂商（WMI Manufacturer）</summary>
+    public string Manufacturer { get; set; } = string.Empty;
+
+    /// <summary>硬件 ID（如 USB\VID_10C4&PID_EA60\...）</summary>
+    public string HardwareId { get; set; } = string.Empty;
+
+    /// <summary>USB Vendor ID（十六进制字符串），非 USB 设备为 null</summary>
+    public string? Vid { get; set; }
+
+    /// <summary>USB Product ID（十六进制字符串），非 USB 设备为 null</summary>
+    public string? Pid { get; set; }
+
+    /// <summary>界面显示名称：优先完整友好名，WMI 查不到时回退短名</summary>
+    public string DisplayName =>
+        string.IsNullOrWhiteSpace(FullName) ? Name : FullName;
+
     /// <summary>类型标注（RS232/RS485，系统无法自动识别，手动标注）</summary>
     public string Type { get; set; } = "";
 

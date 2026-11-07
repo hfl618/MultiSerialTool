@@ -12,7 +12,7 @@ namespace MultiSerialTool.ViewModels;
 /// <summary>
 /// 主窗口 ViewModel：左侧协议下拉，右侧按协议工作区/设置页切换。
 /// </summary>
-public class MainViewModel : ViewModelBase
+public class MainViewModel : ViewModelBase, IDisposable
 {
     /// <summary>协议下拉选项</summary>
     public List<string> Protocols { get; } = new() { "串口", "TCP", "MQTT" };
@@ -24,6 +24,11 @@ public class MainViewModel : ViewModelBase
         get => _currentProtocol;
         set
         {
+            // 下拉框在重绑/初始化瞬间可能写入 null 中间态：
+            // 直接忽略，避免把它当成一次真实切换而重建设备页。
+            if (string.IsNullOrEmpty(value))
+                return;
+
             if (SetProperty(ref _currentProtocol, value))
             {
                 SwitchPage(value);
@@ -55,9 +60,17 @@ public class MainViewModel : ViewModelBase
     /// <summary>打开版本（关于）窗口</summary>
     public RelayCommand ShowAboutCommand { get; }
 
+    // ===== 各协议 VM 单例缓存：
+    // 协议切换只在这几个已存在的实例间切换，绝不重新 new。
+    // 这样串口连接、设备状态、收发历史、发送草稿等全部随实例保留，
+    // 也不会因重复创建 SerialViewModel 而产生第二个串口句柄、造成端口占用冲突。
+    private SerialViewModel? _serialViewModel;
+    private TcpViewModel? _tcpViewModel;
+    private MqttViewModel? _mqttViewModel;
+
     public MainViewModel()
     {
-        CurrentViewModel = new SerialViewModel();
+        CurrentViewModel = GetSerialViewModel();
 
         ShowSettingsCommand = new RelayCommand(() =>
         {
@@ -116,14 +129,36 @@ public class MainViewModel : ViewModelBase
     private void RaiseRightContent()
         => RaisePropertyChanged(nameof(RightContent));
 
-    /// <summary>根据协议名切换左侧设备页面</summary>
+    /// <summary>
+    /// 根据协议名切换左侧设备页面：全部复用缓存的单例，不销毁、不重建。
+    /// （覆盖层 设置/LOG 只改 RightContent，不经过这里，设备实例始终存活。）
+    /// </summary>
     private void SwitchPage(string protocol)
     {
         CurrentViewModel = protocol switch
         {
-            "TCP" => new TcpViewModel(),
-            "MQTT" => new MqttViewModel(),
-            _ => new SerialViewModel()
+            "TCP" => _tcpViewModel ??= new TcpViewModel(),
+            "MQTT" => _mqttViewModel ??= new MqttViewModel(),
+            _ => GetSerialViewModel()
         };
+    }
+
+    /// <summary>串口页单例（懒加载，首次进入或启动时创建唯一实例）</summary>
+    private SerialViewModel GetSerialViewModel()
+        => _serialViewModel ??= new SerialViewModel();
+
+    private bool _disposed;
+
+    /// <summary>
+    /// 进程退出时释放常驻串口页的热插拔监听等资源；
+    /// 已打开的串口连接随进程关闭由系统回收。
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+        _disposed = true;
+
+        _serialViewModel?.Dispose();
     }
 }
