@@ -5,7 +5,10 @@
       "key": "addr",
       "label": "设备地址",
       "query": "01 03 00 00 00 01 84 0A",
-      "parse": { "type": "offset", "offset": 3, "length": 2 },
+      "parse": {
+        "type": "offset", "offset": 3, "length": 2,
+        "frameFilter": "01 03 02 ?? ?? ?? ??"
+      },
       "refresh": true
     }
   ],
@@ -13,28 +16,78 @@
     {
       "key": "voltage",
       "label": "电压",
-      "parse": { "type": "offset", "offset": 3, "length": 2, "scale": 0.1, "unit": "V" }
+      "parse": {
+        "type": "offset", "offset": 3, "length": 2, "scale": 0.1, "unit": "V",
+        "frameFilter": "01 03 02 ?? ?? ?? ??"
+      }
     },
     {
       "key": "current",
       "label": "电流",
-      "parse": { "type": "offset", "offset": 5, "length": 2, "scale": 0.01, "unit": "A" }
+      "parse": {
+        "type": "offset", "offset": 5, "length": 2, "scale": 0.01, "unit": "A",
+        "frameFilter": "01 04 04 ?? ?? ?? ?? ?? ??"
+      }
     }
   ],
   "autoReplies": [
     {
       "index": 1,
-      "command": "01 03 00 00 00 01 84 0A",
+      "enabled": true,
+      "name": "读保持寄存器",
+      "matchMode": "mask",
+      "command": "01 03 ?? ?? ?? ?? ?? ??",
       "expected": "地址01 功能码03 读1个保持寄存器",
       "operation": "自动回复",
-      "actualReply": "01 03 02 00 7A 39 A7"
+      "actualReply": "01 03 02 00 7A [CRC16]",
+      "delayMs": 0,
+      "maxTimes": 0
     },
     {
       "index": 2,
-      "command": "01 04 00 00 00 02 71 CB",
+      "enabled": true,
+      "name": "读输入寄存器",
+      "matchMode": "mask",
+      "command": "01 04 ?? ?? ?? ?? ?? ??",
       "expected": "地址01 功能码04 读2个输入寄存器",
       "operation": "自动回复",
-      "actualReply": "01 04 04 00 7A 00 C8 DB CB"
+      "actualReply": "01 04 04 00 7A 00 C8 [CRC16]",
+      "delayMs": 0,
+      "maxTimes": 0
+    }
+  ],
+  "quickSends": [
+    {
+      "name": "读电压",
+      "group": "查询",
+      "frame": "01 03 00 00 00 01 [CRC16]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100,
+      "expect": {
+        "matchMode": "mask",
+        "expected": "01 03 02 ?? ?? ?? ??",
+        "timeoutMs": 1000,
+        "asserts": [
+          { "source": "voltage", "op": "eq", "expected": 12.2 }
+        ]
+      }
+    },
+    {
+      "name": "读输入寄存器",
+      "group": "查询",
+      "frame": "01 04 00 00 00 02 [CRC16]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100,
+      "expect": {
+        "matchMode": "mask",
+        "expected": "01 04 04 ?? ?? ?? ?? ?? ??",
+        "timeoutMs": 1000,
+        "asserts": []
+      }
     }
   ],
   "sample": {

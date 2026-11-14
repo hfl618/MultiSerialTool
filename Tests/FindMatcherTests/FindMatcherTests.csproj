@@ -11,8 +11,8 @@
 
   <!-- 与 LoopbackTest 一致：dll 引用避免 ProjectReference 触发 CS0579；改主项目后先构建主项目 -->
   <ItemGroup>
-    <Reference Include="MultiSerialTool-1.0.0-hfl">
-      <HintPath>..\..\bin\Debug\net9.0-windows\MultiSerialTool-1.0.0-hfl.dll</HintPath>
+    <Reference Include="MultiSerialTool-hfl">
+      <HintPath>..\..\bin\Debug\net9.0-windows\MultiSerialTool-hfl.dll</HintPath>
     </Reference>
   </ItemGroup>
 

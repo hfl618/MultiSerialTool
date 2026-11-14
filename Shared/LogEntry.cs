@@ -15,10 +15,13 @@ public class LogEntry
     public string Text { get; set; } = string.Empty;
 
     /// <summary>
-    /// 十六进制视图（仅 RX 原始字节场景填充，如 "00 11 22"），
-    /// 纯文本协议或无原始字节时为 null。
+    /// 十六进制视图（RX 原始字节 / TX 写出字节均填充，如 "00 11 22"），
+    /// 无原始字节时为 null。
     /// </summary>
     public string? HexText { get; set; }
+
+    /// <summary>原始字节（HEX 视图与通篇切换依据），无原始字节时为 null</summary>
+    public byte[]? Bytes { get; set; }
 
     /// <summary>
     /// 显示用前缀，TX 显示“TX”，RX 显示“RX”。

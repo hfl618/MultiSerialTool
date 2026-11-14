@@ -19,7 +19,7 @@ namespace MultiSerialTool.Views
     /// <summary>
     /// ChartView.xaml 的交互逻辑。
     /// 粘贴文本（-----chartN n="名称" ...）只用于定义“图表规则”：每个 {..} 占位符定义一个数据系列，
-    /// 数据点不在粘贴文本里，而来自图表数据源设备（ChartLogEntries）实时接收到的日志，按占位符规则实时匹配绘制。
+    /// 数据点不在粘贴文本里，而来自图表数据源设备（ChartLogGroups）实时接收到的归组，按占位符规则实时匹配绘制。
     /// 图例名：{自定义名:格式} 用自定义名，否则取占位符前的字段名。
     /// </summary>
     public partial class ChartView : System.Windows.Controls.UserControl
@@ -45,7 +45,7 @@ namespace MultiSerialTool.Views
         private DataTable _recordTable = new();
 
         private SerialWorkspaceViewModel? _vm;
-        private INotifyCollectionChanged? _subscribedEntries;
+        private INotifyCollectionChanged? _subscribedGroups;
         private bool _autoLoaded;
 
         public ChartView()
@@ -133,7 +133,7 @@ namespace MultiSerialTool.Views
                 BindViewModel(DataContext as SerialWorkspaceViewModel);
 
                 // 新表与空系列：回放当前数据源设备的历史 RX，恢复曲线与记录
-                Replay(_vm?.ChartLogEntries);
+                Replay(_vm?.ChartLogGroups);
             }
             catch (Exception ex)
             {
@@ -322,7 +322,7 @@ namespace MultiSerialTool.Views
         // 清空：清除图表点、记录与订阅，回到空状态
         private void BtnClear_Click(object sender, RoutedEventArgs e)
         {
-            UnbindEntries();
+            UnbindGroups();
             ChartTabs.Items.Clear();
             _tabs.Clear();
             _recordTable = new DataTable();
@@ -536,34 +536,34 @@ namespace MultiSerialTool.Views
             {
                 _vm.PropertyChanged += OnVmPropertyChanged;
             }
-            SwitchChartSource(_vm?.ChartLogEntries);
+            SwitchChartSource(_vm?.ChartLogGroups);
         }
 
         private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(SerialWorkspaceViewModel.ChartLogEntries))
+            if (e.PropertyName == nameof(SerialWorkspaceViewModel.ChartLogGroups))
             {
-                SwitchChartSource(_vm?.ChartLogEntries);
+                SwitchChartSource(_vm?.ChartLogGroups);
             }
         }
 
         /// <summary>
         /// 图表数据源设备切换：保留规则与数据列，清空曲线点和记录表行，
-        /// 重新订阅新设备并回填其历史 RX。原始日志仍保留在设备上，不丢失。
+        /// 重新订阅新设备并回填其历史归组。原始日志仍保留在设备上，不丢失。
         /// </summary>
-        private void SwitchChartSource(INotifyCollectionChanged? entries)
+        private void SwitchChartSource(INotifyCollectionChanged? groups)
         {
-            if (ReferenceEquals(_subscribedEntries, entries))
+            if (ReferenceEquals(_subscribedGroups, groups))
                 return;
 
             ClearChartData();
-            UnbindEntries();
+            UnbindGroups();
 
-            _subscribedEntries = entries;
-            if (entries is INotifyCollectionChanged nc)
-                nc.CollectionChanged += OnEntriesChanged;
+            _subscribedGroups = groups;
+            if (groups is INotifyCollectionChanged nc)
+                nc.CollectionChanged += OnGroupsChanged;
 
-            Replay(entries);
+            Replay(groups);
         }
 
         // 清空曲线点与记录表行（保留规则、页签与数据列）
@@ -580,31 +580,30 @@ namespace MultiSerialTool.Views
         }
 
         /// <summary>
-        /// 回放集合中已有的 RX 日志（跳过 TX），用于切换设备或重建规则后恢复历史曲线。
+        /// 回放集合中已有的归组，用于切换设备或重建规则后恢复历史曲线。
         /// 只能在曲线点已清空（或全新空系列）时调用，避免重复。
         /// </summary>
-        private void Replay(object? entries)
+        private void Replay(object? groups)
         {
-            if (entries is not IEnumerable<LogEntry> logEntries)
+            if (groups is not IEnumerable<ReportGroup> reportGroups)
                 return;
 
-            foreach (var entry in logEntries)
+            foreach (var group in reportGroups)
             {
-                if (!entry.IsTx)
-                    ProcessEntry(entry);
+                ProcessGroup(group);
             }
         }
 
-        private void UnbindEntries()
+        private void UnbindGroups()
         {
-            if (_subscribedEntries is INotifyCollectionChanged nc)
+            if (_subscribedGroups is INotifyCollectionChanged nc)
             {
-                nc.CollectionChanged -= OnEntriesChanged;
+                nc.CollectionChanged -= OnGroupsChanged;
             }
-            _subscribedEntries = null;
+            _subscribedGroups = null;
         }
 
-        private void OnEntriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        private void OnGroupsChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems == null)
             {
@@ -613,18 +612,18 @@ namespace MultiSerialTool.Views
 
             foreach (var item in e.NewItems)
             {
-                if (item is not LogEntry entry || entry.IsTx)
+                if (item is not ReportGroup group)
                 {
                     continue;
                 }
 
                 if (!Dispatcher.CheckAccess())
                 {
-                    Dispatcher.Invoke(() => ProcessEntry(entry));
+                    Dispatcher.Invoke(() => ProcessGroup(group));
                 }
                 else
                 {
-                    ProcessEntry(entry);
+                    ProcessGroup(group);
                 }
             }
         }
@@ -703,9 +702,9 @@ namespace MultiSerialTool.Views
             RecordGrid.ItemsSource = _recordTable.DefaultView;
         }
 
-        // 实时帧（一条消息可能含多个页签的多行数据）：
-        // 一条消息只建一行，所有命中锚点的页签把字段填到同一行，曲线点时间统一为消息时间
-        private void ProcessEntry(LogEntry entry)
+        // 实时归组（一个上报组可能含多个页签的多行数据）：
+        // 一个组只建一行，所有命中锚点的页签把字段填到同一行，曲线点时间统一为组时间
+        private void ProcessGroup(ReportGroup group)
         {
             if (_tabs.Count == 0)
             {
@@ -716,14 +715,14 @@ namespace MultiSerialTool.Views
 
             foreach (var tab in _tabs)
             {
-                if (tab.AnchorRegex is null || !tab.AnchorRegex.IsMatch(entry.Text))
+                if (tab.AnchorRegex is null || !tab.AnchorRegex.IsMatch(group.CombinedText))
                 {
                     continue;
                 }
 
                 foreach (var f in tab.Fields)
                 {
-                    var m = f.ValueRegex.Match(entry.Text);
+                    var m = f.ValueRegex.Match(group.CombinedText);
                     if (!m.Success)
                     {
                         continue;
@@ -731,10 +730,10 @@ namespace MultiSerialTool.Views
 
                     var v = double.Parse(m.Groups[1].Value,
                         System.Globalization.CultureInfo.InvariantCulture);
-                    f.Series.Points.Add(new SeriesPoint(entry.Time, v));
+                    f.Series.Points.Add(new SeriesPoint(group.Time, v));
 
                     row ??= _recordTable.NewRow();
-                    row["时间"] = entry.Time;
+                    row["时间"] = group.Time;
                     row[f.Column] = v;
                 }
             }

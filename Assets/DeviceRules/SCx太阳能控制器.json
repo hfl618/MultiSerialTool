@@ -1,0 +1,1360 @@
+{
+  "deviceType": "SCx太阳能控制器",
+  "fields": [
+    {
+      "key": "rtc_year",
+      "label": "RTC年",
+      "query": "53 57 49 4F 54 54 0C 48 04 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 12 C8 0A ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "summary": "RTC年（0-99，代表2000-2099）"
+      },
+      "refresh": true
+    },
+    {
+      "key": "rtc_month",
+      "label": "RTC月",
+      "query": "53 57 49 4F 54 54 0C 48 04 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 10,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 12 C8 0A ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      },
+      "refresh": true
+    },
+    {
+      "key": "rtc_day",
+      "label": "RTC日",
+      "query": "53 57 49 4F 54 54 0C 48 04 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 11,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 12 C8 0A ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      },
+      "refresh": true
+    },
+    {
+      "key": "rtc_week",
+      "label": "RTC星期",
+      "query": "53 57 49 4F 54 54 0C 48 04 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 12,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 12 C8 0A ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "enumMap": {
+          "1": "星期一",
+          "2": "星期二",
+          "3": "星期三",
+          "4": "星期四",
+          "5": "星期五",
+          "6": "星期六",
+          "7": "星期日"
+        }
+      },
+      "refresh": true
+    },
+    {
+      "key": "rtc_hour",
+      "label": "RTC时",
+      "query": "53 57 49 4F 54 54 0C 48 04 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 13,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 12 C8 0A ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      },
+      "refresh": true
+    },
+    {
+      "key": "rtc_minute",
+      "label": "RTC分",
+      "query": "53 57 49 4F 54 54 0C 48 04 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 14,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 12 C8 0A ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      },
+      "refresh": true
+    },
+    {
+      "key": "rtc_second",
+      "label": "RTC秒",
+      "query": "53 57 49 4F 54 54 0C 48 04 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 15,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 12 C8 0A ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      },
+      "refresh": true
+    },
+    {
+      "key": "group_no",
+      "label": "组号",
+      "query": "53 57 49 4F 54 54 0B 55 03 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 0C D5 04 ?? ?? ??",
+        "summary": "0代表广播组，范围0-255"
+      },
+      "refresh": true
+    },
+    {
+      "key": "sw_version",
+      "label": "固件版本",
+      "query": "53 57 49 4F 54 54 0C 57 04 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 11 D7 09 ?? ?? ?? ?? ?? ?? ?? ??"
+      },
+      "refresh": true
+    },
+    {
+      "key": "hw_version",
+      "label": "硬件版本",
+      "query": "53 57 49 4F 54 54 0C 57 04 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 10,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 11 D7 09 ?? ?? ?? ?? ?? ?? ?? ??"
+      },
+      "refresh": true
+    },
+    {
+      "key": "device_code",
+      "label": "设备码",
+      "query": "53 57 49 4F 54 54 0C 57 04 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 11,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 11 D7 09 ?? ?? ?? ?? ?? ?? ?? ??"
+      },
+      "refresh": true
+    },
+    {
+      "key": "burn_hour_high",
+      "label": "运行时长高字节",
+      "query": "53 57 49 4F 54 54 0C 57 04 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 12,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 11 D7 09 ?? ?? ?? ?? ?? ?? ?? ??"
+      },
+      "refresh": true
+    },
+    {
+      "key": "burn_hour_low",
+      "label": "运行时长低2字节",
+      "query": "53 57 49 4F 54 54 0C 57 04 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 13,
+        "length": 2,
+        "dataType": "u16",
+        "frameFilter": "53 57 49 4F 54 54 11 D7 09 ?? ?? ?? ?? ?? ?? ?? ??",
+        "unit": "h",
+        "endian": "little"
+      },
+      "refresh": true
+    },
+    {
+      "key": "bat_over_discharge",
+      "label": "过放保护电压",
+      "query": "53 57 49 4F 54 54 13 4D 0B 00 00 00 00 00 00 00 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 2,
+        "dataType": "u16",
+        "scale": 0.1,
+        "unit": "V",
+        "frameFilter": "53 57 49 4F 54 54 13 CD 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      },
+      "refresh": true
+    },
+    {
+      "key": "bat_pre_charge",
+      "label": "预充电压",
+      "query": "53 57 49 4F 54 54 13 4D 0B 00 00 00 00 00 00 00 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 11,
+        "length": 2,
+        "dataType": "u16",
+        "scale": 0.1,
+        "unit": "V",
+        "frameFilter": "53 57 49 4F 54 54 13 CD 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      },
+      "refresh": true
+    },
+    {
+      "key": "bat_floating_charge",
+      "label": "浮充电压",
+      "query": "53 57 49 4F 54 54 13 4D 0B 00 00 00 00 00 00 00 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 13,
+        "length": 2,
+        "dataType": "u16",
+        "scale": 0.1,
+        "unit": "V",
+        "frameFilter": "53 57 49 4F 54 54 13 CD 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      },
+      "refresh": true
+    },
+    {
+      "key": "bat_over_charge",
+      "label": "过充保护电压",
+      "query": "53 57 49 4F 54 54 13 4D 0B 00 00 00 00 00 00 00 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 15,
+        "length": 2,
+        "dataType": "u16",
+        "scale": 0.1,
+        "unit": "V",
+        "frameFilter": "53 57 49 4F 54 54 13 CD 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      },
+      "refresh": true
+    },
+    {
+      "key": "bat_uv_threshold",
+      "label": "电池低压报警阈值",
+      "query": "53 57 49 4F 54 54 0E 4E 06 00 00 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 2,
+        "dataType": "u16",
+        "scale": 0.1,
+        "unit": "V",
+        "frameFilter": "53 57 49 4F 54 54 0E CE 06 ?? ?? ?? ?? ??",
+        "endian": "little"
+      },
+      "refresh": true
+    },
+    {
+      "key": "system_voltage_series",
+      "label": "系统电压串数",
+      "query": "53 57 49 4F 54 54 0E 4E 06 00 00 00 [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 11,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 0E CE 06 ?? ?? ?? ?? ??",
+        "enumMap": {
+          "4": "4串/12.8V系统",
+          "8": "8串/25.6V系统"
+        }
+      },
+      "refresh": true
+    },
+    {
+      "key": "di_restore_delay",
+      "label": "数字输入恢复延迟",
+      "query": "53 57 49 4F 54 54 0D 4F 05 FF FF [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 2,
+        "dataType": "u16",
+        "unit": "s",
+        "frameFilter": "53 57 49 4F 54 54 0D CF 05 ?? ?? ?? ??",
+        "endian": "little"
+      },
+      "refresh": true
+    },
+    {
+      "key": "report_interval",
+      "label": "定时上报间隔",
+      "query": "53 57 49 4F 54 54 0C 6C 04 FF [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 1,
+        "dataType": "u8",
+        "unit": "min",
+        "frameFilter": "53 57 49 4F 54 54 0C EC 04 ?? ?? ??",
+        "summary": "0禁用，1-240分钟"
+      },
+      "refresh": true
+    },
+    {
+      "key": "tilt_angle",
+      "label": "灯杆倾斜角度",
+      "query": "53 57 49 4F 54 54 0C 6D 04 FF [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 1,
+        "dataType": "u8",
+        "unit": "°",
+        "frameFilter": "53 57 49 4F 54 54 0C ED 04 ?? ?? ??"
+      },
+      "refresh": true
+    },
+    {
+      "key": "work_mode",
+      "label": "工作模式",
+      "query": "53 57 49 4F 54 54 0C 70 04 FF [UDSUM] [SUM]",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 0C F0 04 ?? ?? ??",
+        "enumMap": {
+          "0": "自动时序模式",
+          "1": "手动调光模式",
+          "2": "光感调光模式",
+          "3": "定时调光模式"
+        }
+      },
+      "refresh": true
+    }
+  ],
+  "charts": [
+    {
+      "key": "charge_energy",
+      "label": "总发电量",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 4,
+        "dataType": "u32",
+        "unit": "Wh",
+        "frameFilter": "53 57 49 4F 54 54 13 D6 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      }
+    },
+    {
+      "key": "discharge_energy",
+      "label": "总耗电量",
+      "parse": {
+        "type": "offset",
+        "offset": 13,
+        "length": 4,
+        "dataType": "u32",
+        "unit": "Wh",
+        "frameFilter": "53 57 49 4F 54 54 13 D6 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      }
+    },
+    {
+      "key": "panel_voltage",
+      "label": "光伏板电压",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 2,
+        "dataType": "u16",
+        "scale": 0.1,
+        "unit": "V",
+        "frameFilter": "53 57 49 4F 54 54 11 D8 09 ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      }
+    },
+    {
+      "key": "panel_current",
+      "label": "光伏板电流",
+      "parse": {
+        "type": "offset",
+        "offset": 11,
+        "length": 2,
+        "dataType": "u16",
+        "unit": "mA",
+        "frameFilter": "53 57 49 4F 54 54 11 D8 09 ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      }
+    },
+    {
+      "key": "panel_power",
+      "label": "光伏板功率",
+      "parse": {
+        "type": "offset",
+        "offset": 13,
+        "length": 2,
+        "dataType": "u16",
+        "scale": 0.1,
+        "unit": "W",
+        "frameFilter": "53 57 49 4F 54 54 11 D8 09 ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      }
+    },
+    {
+      "key": "battery_voltage",
+      "label": "电池电压",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 2,
+        "dataType": "u16",
+        "scale": 0.1,
+        "unit": "V",
+        "frameFilter": "53 57 49 4F 54 54 13 D9 0A ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      }
+    },
+    {
+      "key": "battery_current",
+      "label": "电池电流",
+      "parse": {
+        "type": "offset",
+        "offset": 11,
+        "length": 2,
+        "dataType": "u16",
+        "unit": "mA",
+        "frameFilter": "53 57 49 4F 54 54 13 D9 0A ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      }
+    },
+    {
+      "key": "battery_power",
+      "label": "电池功率",
+      "parse": {
+        "type": "offset",
+        "offset": 13,
+        "length": 2,
+        "dataType": "u16",
+        "scale": 0.1,
+        "unit": "W",
+        "frameFilter": "53 57 49 4F 54 54 13 D9 0A ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      }
+    },
+    {
+      "key": "charge_state",
+      "label": "充放电状态",
+      "parse": {
+        "type": "offset",
+        "offset": 15,
+        "length": 1,
+        "dataType": "u8",
+        "bitMask": "0x80",
+        "frameFilter": "53 57 49 4F 54 54 13 D9 0A ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "enumMap": {
+          "0": "放电",
+          "128": "充电"
+        }
+      }
+    },
+    {
+      "key": "battery_capacity",
+      "label": "电池容量",
+      "parse": {
+        "type": "offset",
+        "offset": 15,
+        "length": 1,
+        "dataType": "u8",
+        "bitMask": "0x7F",
+        "unit": "%",
+        "frameFilter": "53 57 49 4F 54 54 13 D9 0A ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "rssi",
+      "label": "信号强度",
+      "parse": {
+        "type": "offset",
+        "offset": 16,
+        "length": 1,
+        "dataType": "i8",
+        "unit": "dBm",
+        "frameFilter": "53 57 49 4F 54 54 13 D9 0A ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "led_voltage",
+      "label": "LED电压",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 2,
+        "dataType": "u16",
+        "scale": 0.1,
+        "unit": "V",
+        "frameFilter": "53 57 49 4F 54 54 12 DA 0A ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      }
+    },
+    {
+      "key": "led_current",
+      "label": "LED电流",
+      "parse": {
+        "type": "offset",
+        "offset": 11,
+        "length": 2,
+        "dataType": "u16",
+        "unit": "mA",
+        "frameFilter": "53 57 49 4F 54 54 12 DA 0A ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      }
+    },
+    {
+      "key": "led_power",
+      "label": "LED功率",
+      "parse": {
+        "type": "offset",
+        "offset": 13,
+        "length": 2,
+        "dataType": "u16",
+        "scale": 0.1,
+        "unit": "W",
+        "frameFilter": "53 57 49 4F 54 54 12 DA 0A ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      }
+    },
+    {
+      "key": "dim_level",
+      "label": "当前调光值",
+      "parse": {
+        "type": "offset",
+        "offset": 15,
+        "length": 1,
+        "dataType": "u8",
+        "unit": "%",
+        "frameFilter": "53 57 49 4F 54 54 12 DA 0A ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_dim_1",
+      "label": "时段1亮度",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 1,
+        "dataType": "u8",
+        "unit": "%",
+        "frameFilter": "53 57 49 4F 54 54 13 DB 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_dim_2",
+      "label": "时段2亮度",
+      "parse": {
+        "type": "offset",
+        "offset": 10,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DB 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_dim_3",
+      "label": "时段3亮度",
+      "parse": {
+        "type": "offset",
+        "offset": 11,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DB 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_dim_4",
+      "label": "时段4亮度",
+      "parse": {
+        "type": "offset",
+        "offset": 12,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DB 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_dim_5",
+      "label": "时段5亮度",
+      "parse": {
+        "type": "offset",
+        "offset": 13,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DB 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_dim_6",
+      "label": "时段6亮度",
+      "parse": {
+        "type": "offset",
+        "offset": 14,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DB 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_dim_7",
+      "label": "时段7亮度",
+      "parse": {
+        "type": "offset",
+        "offset": 15,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DB 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_dim_8",
+      "label": "时段8亮度",
+      "parse": {
+        "type": "offset",
+        "offset": 16,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DB 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_time_1",
+      "label": "时段1时间",
+      "parse": {
+        "type": "offset",
+        "offset": 9,
+        "length": 1,
+        "dataType": "u8",
+        "unit": "min",
+        "frameFilter": "53 57 49 4F 54 54 13 DC 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_time_2",
+      "label": "时段2时间",
+      "parse": {
+        "type": "offset",
+        "offset": 10,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DC 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_time_3",
+      "label": "时段3时间",
+      "parse": {
+        "type": "offset",
+        "offset": 11,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DC 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_time_4",
+      "label": "时段4时间",
+      "parse": {
+        "type": "offset",
+        "offset": 12,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DC 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_time_5",
+      "label": "时段5时间",
+      "parse": {
+        "type": "offset",
+        "offset": 13,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DC 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_time_6",
+      "label": "时段6时间",
+      "parse": {
+        "type": "offset",
+        "offset": 14,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DC 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_time_7",
+      "label": "时段7时间",
+      "parse": {
+        "type": "offset",
+        "offset": 15,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DC 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "seg_time_8",
+      "label": "时段8时间",
+      "parse": {
+        "type": "offset",
+        "offset": 16,
+        "length": 1,
+        "dataType": "u8",
+        "frameFilter": "53 57 49 4F 54 54 13 DC 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??"
+      }
+    },
+    {
+      "key": "fault_lt",
+      "label": "控制器温度过低",
+      "parse": {
+        "type": "offset",
+        "offset": 15,
+        "length": 2,
+        "dataType": "u16",
+        "bitMask": "0x0001",
+        "frameFilter": "53 57 49 4F 54 54 13 F2 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "enumMap": {
+          "0": "正常",
+          "1": "异常"
+        },
+        "endian": "little"
+      }
+    },
+    {
+      "key": "fault_ot",
+      "label": "控制器温度过高",
+      "parse": {
+        "type": "offset",
+        "offset": 15,
+        "length": 2,
+        "dataType": "u16",
+        "bitMask": "0x0002",
+        "frameFilter": "53 57 49 4F 54 54 13 F2 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "enumMap": {
+          "0": "正常",
+          "2": "异常"
+        },
+        "endian": "little"
+      }
+    },
+    {
+      "key": "fault_rtc",
+      "label": "RTC异常",
+      "parse": {
+        "type": "offset",
+        "offset": 15,
+        "length": 2,
+        "dataType": "u16",
+        "bitMask": "0x2000",
+        "frameFilter": "53 57 49 4F 54 54 13 F2 0B ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "enumMap": {
+          "0": "正常",
+          "8192": "异常"
+        },
+        "endian": "little"
+      }
+    },
+    {
+      "key": "gps_longitude",
+      "label": "经度",
+      "parse": {
+        "type": "offset",
+        "offset": 10,
+        "length": 8,
+        "dataType": "float64",
+        "frameFilter": "53 57 49 4F 54 54 13 EE 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "summary": "8字节 double，小端字节序",
+        "endian": "little"
+      }
+    },
+    {
+      "key": "gps_latitude",
+      "label": "纬度",
+      "parse": {
+        "type": "offset",
+        "offset": 10,
+        "length": 8,
+        "dataType": "float64",
+        "frameFilter": "53 57 49 4F 54 54 13 EE 01 ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "endian": "little"
+      }
+    }
+  ],
+  "autoReplies": [
+    {
+      "index": 1,
+      "enabled": true,
+      "name": "设置LED亮度应答",
+      "matchMode": "mask",
+      "command": "53 57 49 4F 54 54 0C 18 04 ?? ?? ??",
+      "expected": "命令码18 单点设置亮度，返回98及亮度值",
+      "operation": "自动回复",
+      "actualReply": "53 57 49 4F 54 54 0C 98 04 32 [UDSUM] [SUM]",
+      "delayMs": 0,
+      "maxTimes": 0
+    },
+    {
+      "index": 2,
+      "enabled": true,
+      "name": "设备重启应答",
+      "matchMode": "mask",
+      "command": "53 57 49 4F 54 54 0C 38 04 01 ?? ??",
+      "expected": "命令码38 重启，返回B8",
+      "operation": "自动回复",
+      "actualReply": "53 57 49 4F 54 54 0C B8 04 01 [UDSUM] [SUM]",
+      "delayMs": 0,
+      "maxTimes": 0
+    },
+    {
+      "index": 3,
+      "enabled": true,
+      "name": "RTC查询应答",
+      "matchMode": "mask",
+      "command": "53 57 49 4F 54 54 0C 48 04 00 ?? ??",
+      "expected": "命令码48 查询时钟，返回C8及7字节时间",
+      "operation": "自动回复",
+      "actualReply": "53 57 49 4F 54 54 12 C8 0A 16 07 0F 03 0A 1E 00 [UDSUM] [SUM]",
+      "delayMs": 0,
+      "maxTimes": 0
+    },
+    {
+      "index": 4,
+      "enabled": true,
+      "name": "组号查询应答",
+      "matchMode": "mask",
+      "command": "53 57 49 4F 54 54 0B 55 03 ?? ??",
+      "expected": "命令码55 查询组号，返回D5",
+      "operation": "自动回复",
+      "actualReply": "53 57 49 4F 54 54 0C D5 04 02 [UDSUM] [SUM]",
+      "delayMs": 0,
+      "maxTimes": 0
+    },
+    {
+      "index": 5,
+      "enabled": true,
+      "name": "能耗查询应答",
+      "matchMode": "mask",
+      "command": "53 57 49 4F 54 54 0B 56 03 ?? ??",
+      "expected": "命令码56 返回D6 总发电/耗电量",
+      "operation": "自动回复",
+      "actualReply": "53 57 49 4F 54 54 13 D6 0B 10 27 00 00 AC 26 00 00 [UDSUM] [SUM]",
+      "delayMs": 0,
+      "maxTimes": 0
+    },
+    {
+      "index": 6,
+      "enabled": true,
+      "name": "固定参数查询应答",
+      "matchMode": "mask",
+      "command": "53 57 49 4F 54 54 0C 57 04 00 ?? ??",
+      "expected": "命令码57 返回D7 固件/硬件/设备码/运行时长",
+      "operation": "自动回复",
+      "actualReply": "53 57 49 4F 54 54 11 D7 09 01 03 DD 00 00 00 [UDSUM] [SUM]",
+      "delayMs": 0,
+      "maxTimes": 0
+    },
+    {
+      "index": 7,
+      "enabled": true,
+      "name": "光伏板数据应答",
+      "matchMode": "mask",
+      "command": "53 57 49 4F 54 54 0B 58 03 ?? ??",
+      "expected": "命令码58 返回D8 光伏板电压/电流/功率",
+      "operation": "自动回复",
+      "actualReply": "53 57 49 4F 54 54 11 D8 09 B6 00 00 32 04 06 [UDSUM] [SUM]",
+      "delayMs": 0,
+      "maxTimes": 0
+    },
+    {
+      "index": 8,
+      "enabled": true,
+      "name": "电池数据应答",
+      "matchMode": "mask",
+      "command": "53 57 49 4F 54 54 0B 59 03 ?? ??",
+      "expected": "命令码59 返回D9 电池数据",
+      "operation": "自动回复",
+      "actualReply": "53 57 49 4F 54 54 14 D9 0A 80 00 50 46 00 09 50 52 00 [UDSUM] [SUM]",
+      "delayMs": 0,
+      "maxTimes": 0
+    },
+    {
+      "index": 9,
+      "enabled": true,
+      "name": "LED数据应答",
+      "matchMode": "mask",
+      "command": "53 57 49 4F 54 54 0B 5A 03 ?? ??",
+      "expected": "命令码5A 返回DA LED数据",
+      "operation": "自动回复",
+      "actualReply": "53 57 49 4F 54 54 12 DA 0A 68 01 B8 0B 38 04 50 [UDSUM] [SUM]",
+      "delayMs": 0,
+      "maxTimes": 0
+    },
+    {
+      "index": 10,
+      "enabled": true,
+      "name": "时段亮度查询应答",
+      "matchMode": "mask",
+      "command": "53 57 49 4F 54 54 0B 5B 03 ?? ??",
+      "expected": "命令码5B 返回DB 8段亮度",
+      "operation": "自动回复",
+      "actualReply": "53 57 49 4F 54 54 13 DB 0B 64 50 3C 28 14 00 00 00 [UDSUM] [SUM]",
+      "delayMs": 0,
+      "maxTimes": 0
+    },
+    {
+      "index": 11,
+      "enabled": true,
+      "name": "时段时间查询应答",
+      "matchMode": "mask",
+      "command": "53 57 49 4F 54 54 0B 5C 03 ?? ??",
+      "expected": "命令码5C 返回DC 8段时间",
+      "operation": "自动回复",
+      "actualReply": "53 57 49 4F 54 54 13 DC 0B F0 3C 3C 28 14 00 00 00 [UDSUM] [SUM]",
+      "delayMs": 0,
+      "maxTimes": 0
+    },
+    {
+      "index": 12,
+      "enabled": true,
+      "name": "工作模式查询应答",
+      "matchMode": "mask",
+      "command": "53 57 49 4F 54 54 0C 70 04 FF ?? ??",
+      "expected": "命令码70 查询返回F0 当前模式",
+      "operation": "自动回复",
+      "actualReply": "53 57 49 4F 54 54 0C F0 04 01 [UDSUM] [SUM]",
+      "delayMs": 0,
+      "maxTimes": 0
+    },
+    {
+      "index": 13,
+      "enabled": true,
+      "name": "LED闪灯应答",
+      "matchMode": "mask",
+      "command": "53 57 49 4F 54 54 0B 71 03 ?? ??",
+      "expected": "命令码71 返回F1 闪灯结果",
+      "operation": "自动回复",
+      "actualReply": "53 57 49 4F 54 54 0C F1 04 01 [UDSUM] [SUM]",
+      "delayMs": 0,
+      "maxTimes": 0
+    }
+  ],
+  "quickSends": [
+    {
+      "name": "设置LED亮度50%",
+      "group": "控制",
+      "frame": "53 57 49 4F 54 54 0C 18 04 32 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100,
+      "expect": {
+        "matchMode": "mask",
+        "expected": "53 57 49 4F 54 54 0C 98 04 ?? ?? ??",
+        "timeoutMs": 1000,
+        "asserts": []
+      }
+    },
+    {
+      "name": "广播设置亮度(全广播关灯)",
+      "group": "控制",
+      "frame": "53 57 49 4F 54 54 0D 19 04 00 00 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "组播设置亮度(1组50%)",
+      "group": "控制",
+      "frame": "53 57 49 4F 54 54 0D 19 05 01 32 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "设备重启",
+      "group": "控制",
+      "frame": "53 57 49 4F 54 54 0C 38 04 01 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100,
+      "expect": {
+        "matchMode": "mask",
+        "expected": "53 57 49 4F 54 54 0C B8 04 01 ?? ??",
+        "timeoutMs": 1000,
+        "asserts": []
+      }
+    },
+    {
+      "name": "查询实时时钟",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0C 48 04 00 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100,
+      "expect": {
+        "matchMode": "mask",
+        "expected": "53 57 49 4F 54 54 12 C8 0A ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "timeoutMs": 1000,
+        "asserts": []
+      }
+    },
+    {
+      "name": "设置实时时钟",
+      "group": "设置",
+      "frame": "53 57 49 4F 54 54 12 48 0A 16 09 15 03 12 00 00 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100,
+      "expect": {
+        "matchMode": "mask",
+        "expected": "53 57 49 4F 54 54 0C C8 04 01 ?? ??",
+        "timeoutMs": 1000,
+        "asserts": []
+      }
+    },
+    {
+      "name": "设置组号(2组)",
+      "group": "设置",
+      "frame": "53 57 49 4F 54 54 0C 4A 04 02 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "设置时段亮度",
+      "group": "设置",
+      "frame": "53 57 49 4F 54 54 13 4B 0B 64 50 3C 28 14 00 00 00 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "设置时段时间点",
+      "group": "设置",
+      "frame": "53 57 49 4F 54 54 13 4C 0B F0 3C 3C 28 14 00 00 00 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询电池保护参数",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 13 4D 0B 00 00 00 00 00 00 00 00 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "设置电池保护参数",
+      "group": "设置",
+      "frame": "53 57 49 4F 54 54 13 4D 0B C8 00 E1 00 09 01 2C 01 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询报警阈值",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0E 4E 06 00 00 00 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "设置报警阈值",
+      "group": "设置",
+      "frame": "53 57 49 4F 54 54 0E 4E 06 CD 00 08 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询数字输入恢复时间",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0D 4F 05 FF FF [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "设置数字输入恢复时间(10s)",
+      "group": "设置",
+      "frame": "53 57 49 4F 54 54 0D 4F 05 0A 00 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询组号",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0B 55 03 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100,
+      "expect": {
+        "matchMode": "mask",
+        "expected": "53 57 49 4F 54 54 0C D5 04 ?? ?? ??",
+        "timeoutMs": 1000,
+        "asserts": []
+      }
+    },
+    {
+      "name": "查询总能耗",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0B 56 03 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询固定参数",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0C 57 04 00 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询电池额定参数",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0C 57 04 01 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询光伏板数据",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0B 58 03 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100,
+      "expect": {
+        "matchMode": "mask",
+        "expected": "53 57 49 4F 54 54 11 D8 09 ?? ?? ?? ?? ?? ?? ?? ??",
+        "timeoutMs": 1000,
+        "asserts": [
+          {
+            "source": "panel_voltage",
+            "op": "range",
+            "min": 0,
+            "max": 100
+          }
+        ]
+      }
+    },
+    {
+      "name": "查询电池数据",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0B 59 03 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100,
+      "expect": {
+        "matchMode": "mask",
+        "expected": "53 57 49 4F 54 54 13 D9 0A ?? ?? ?? ?? ?? ?? ?? ?? ?? ??",
+        "timeoutMs": 1000,
+        "asserts": []
+      }
+    },
+    {
+      "name": "查询LED数据",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0B 5A 03 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询时段亮度",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0B 5B 03 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询时段时间点",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0B 5C 03 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询定时上报间隔",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0C 6C 04 FF [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "设置定时上报间隔(10min)",
+      "group": "设置",
+      "frame": "53 57 49 4F 54 54 0C 6C 04 0A [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "初始化倾斜角度",
+      "group": "设置",
+      "frame": "53 57 49 4F 54 54 0C 6D 04 00 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询倾斜角度",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0C 6D 04 FF [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询GPS经度",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0C 6E 04 00 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询GPS纬度",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0C 6E 04 01 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询时序调光文件-帧1",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 13 6F 00 FF FF FF FF FF FF FF FF FF 63",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询时序调光文件-帧2",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 13 6F 01 FF FF FF FF FF FF FF FF FF 64",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询时序调光文件-帧3",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 11 6F 02 FF FF FF FF FF FF 38 9E",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "查询工作模式",
+      "group": "查询",
+      "frame": "53 57 49 4F 54 54 0C 70 04 FF [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "切换手动调光模式",
+      "group": "控制",
+      "frame": "53 57 49 4F 54 54 0C 70 04 01 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "切换光感调光模式",
+      "group": "控制",
+      "frame": "53 57 49 4F 54 54 0C 70 04 02 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "切换定时调光模式",
+      "group": "控制",
+      "frame": "53 57 49 4F 54 54 0C 70 04 03 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    },
+    {
+      "name": "LED闪灯3次",
+      "group": "控制",
+      "frame": "53 57 49 4F 54 54 0B 71 03 [UDSUM] [SUM]",
+      "format": "hex",
+      "append": "none",
+      "repeat": 1,
+      "intervalMs": 100
+    }
+  ],
+  "sample": {
+    "request": "53 57 49 4F 54 54 0C 18 04 32 4E 92",
+    "response": "53 57 49 4F 54 54 0C 98 04 32 CE 92"
+  }
+}

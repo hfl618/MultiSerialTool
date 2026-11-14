@@ -26,11 +26,23 @@ using var peer = new SerialPort(peerPort, 9600, Parity.None, 8, StopBits.One)
 using var conn = new SerialConnection(appPort, 9600);
 
 var receivedChunks = new List<SerialRawChunk>();
+var rawAll = new List<byte>();
 var sync = new object();
 conn.ChunkReceived += chunk =>
 {
-    lock (sync) receivedChunks.Add(chunk);
+    lock (sync)
+    {
+        receivedChunks.Add(chunk);
+        rawAll.AddRange(chunk.Bytes);
+    }
 };
+
+// 取出自 snapshot 之后新到达的全部原始字节（连接层不透传成帧/归组，成帧在 VM 内完成）
+byte[] DrainNewRaw(int snapshot)
+{
+    lock (sync)
+        return rawAll.GetRange(snapshot, rawAll.Count - snapshot).ToArray();
+}
 
 // 先打开应用侧连接（不依赖对端），验证连接与波特率保留
 try
@@ -85,8 +97,8 @@ if (rxChunk is not null)
         rxChunk.Hex == "01 03 02 00 7A 39 A7",
         $"Hex=\"{rxChunk.Hex}\"");
     Check("RX ASCII 占位正确",
-        rxChunk.Text == "......z.9",
-        $"Text=\"{rxChunk.Text}\"（不可打印以.占位，0x7A=z）");
+        rxChunk.Text == "....z9.",
+        $"Text=\"{rxChunk.Text}\"（不可打印以.占位，0x7A=z，0x39=9，0xA7=不可打印）");
 }
 
 // ---------- 测试2：RX 文本帧（带 CRLF） ----------
@@ -135,6 +147,37 @@ catch (Exception ex)
 {
     Check("TX 中文 UTF-8 透传", false, ex.Message);
 }
+
+// ---------- 测试5：多行 ASCII 上报块整块透传（VM 内成帧按行拆、归组按次聚合） ----------
+var reportLines = new[]
+{
+    "----- 2026-11-13 12:35:1 -----",
+    "Solar voltage: 38.72, current: 3.22, power: 124.59, current offset: 0.254, pwm: 0.78",
+    "Battery voltage: 29.21, current: 4.29, capacity: 100, mode: 3",
+    "LED voltage: 47.03, current: 2.63, power: 123.61, energy: 0.00"
+};
+byte[] reportBytes = System.Text.Encoding.ASCII.GetBytes(
+    string.Join("\r\n", reportLines) + "\r\n");
+int snapshot5;
+lock (sync) snapshot5 = rawAll.Count;
+peer.Write(reportBytes, 0, reportBytes.Length);
+Thread.Sleep(500);
+byte[] got5 = DrainNewRaw(snapshot5);
+Check("多行上报块字节完整透传",
+    got5.SequenceEqual(reportBytes),
+    $"收到 {got5.Length} 字节 / 期望 {reportBytes.Length}");
+
+// ---------- 测试6：二进制帧数据区含 0x0A/0x0D，整帧不被原始层拆断 ----------
+// 帧头 SWIOTT + Length=14，载荷故意放入换行字节 0x0A 0x0D
+byte[] binFrame = { 0x53, 0x57, 0x49, 0x4F, 0x54, 0x54, 0x0E, 0x00, 0x11, 0x0A, 0x0D, 0x22, 0x33, 0x44 };
+int snapshot6;
+lock (sync) snapshot6 = rawAll.Count;
+peer.Write(binFrame, 0, binFrame.Length);
+Thread.Sleep(500);
+byte[] got6 = DrainNewRaw(snapshot6);
+Check("含换行字节的二进制帧整帧透传",
+    got6.SequenceEqual(binFrame),
+    $"收到 HEX=[{BitConverter.ToString(got6).Replace('-', ' ')}] 期望 53 57 49 4F 54 54 0E 00 11 0A 0D 22 33 44");
 
 Console.WriteLine($"=== 结果：{pass} 通过 / {fail} 失败 ===");
 return fail == 0 ? 0 : 1;

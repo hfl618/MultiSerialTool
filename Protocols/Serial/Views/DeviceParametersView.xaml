@@ -1,0 +1,43 @@
+<dxlc:LayoutGroup x:Class="MultiSerialTool.Protocols.Serial.DeviceParametersView"
+                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                  xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                  xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
+                  mc:Ignorable="d"
+                  d:DesignHeight="450" d:DesignWidth="800"
+                  Header="{loc:Translate 设备参数}"
+                  View="GroupBox" Orientation="Vertical"
+                  MinHeight="120">
+
+    <!-- 执行引擎字段行：规则解析结果实时回填，支持单项刷新 -->
+    <ItemsControl ItemsSource="{Binding ActiveFieldRows}">
+        <ItemsControl.ItemTemplate>
+            <DataTemplate>
+                <Grid Margin="4,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="{Binding Label}"
+                               Foreground="#444444" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Value}"
+                               VerticalAlignment="Center"
+                               FontFamily="Consolas"/>
+                    <Button Grid.Column="2"
+                            Content="{loc:Translate 刷新}"
+                            Command="{Binding DataContext.RefreshRowCommand,
+                                      RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}"
+                            Padding="8,1"
+                            Visibility="{Binding HasRefreshButton,
+                                Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                </Grid>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+</dxlc:LayoutGroup>

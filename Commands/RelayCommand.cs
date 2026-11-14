@@ -20,6 +20,9 @@ public class RelayCommand : ICommand
 
     public void Execute(object? parameter) => _execute();
 
+    /// <summary>手动请求重新判定 CanExecute（状态变化不在 UI 交互链上时使用）</summary>
+    public void RaiseCanExecuteChanged() => CommandManager.InvalidateRequerySuggested();
+
     public event EventHandler? CanExecuteChanged
     {
         add => CommandManager.RequerySuggested += value;

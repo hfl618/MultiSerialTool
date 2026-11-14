@@ -19,13 +19,23 @@
        导致 CS8802 多个顶级语句、CS0579 重复程序集特性，需显式排除。 -->
   <ItemGroup>
     <Compile Remove="FindMatcherTests\**\*.cs" />
+    <Compile Remove="ChecksumTests\**\*.cs" />
+    <Compile Remove="ParserTests\**\*.cs" />
+    <Compile Remove="EdgeCaseTests\**\*.cs" />
+    <Compile Remove="EngineTests\**\*.cs" />
+    <Compile Remove="ServiceTests\**\*.cs" />
     <Compile Remove="bin\**\*.cs" />
     <Compile Remove="obj\**\*.cs" />
   </ItemGroup>
 
+  <!-- LoopbackTest 直接用 SerialPort/Parity/StopBits，其类型已转发到 System.IO.Ports 程序集，需显式引用 -->
   <ItemGroup>
-    <Reference Include="MultiSerialTool-1.0.0-hfl">
-      <HintPath>..\bin\Debug\net9.0-windows\MultiSerialTool-1.0.0-hfl.dll</HintPath>
+    <PackageReference Include="System.IO.Ports" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="MultiSerialTool-hfl">
+      <HintPath>..\bin\Debug\net9.0-windows\MultiSerialTool-hfl.dll</HintPath>
     </Reference>
   </ItemGroup>
 

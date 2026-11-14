@@ -5,6 +5,7 @@
       "key": "imei",
       "label": "IMEI",
       "query": "AT+CGSN\r\n",
+      "format": "ascii",
       "parse": { "type": "regex", "pattern": "\\d{15}" },
       "refresh": true
     },
@@ -12,6 +13,7 @@
       "key": "ccid",
       "label": "SIM卡号",
       "query": "AT+CCID\r\n",
+      "format": "ascii",
       "parse": { "type": "regex", "pattern": "\\d{20}" },
       "refresh": true
     }

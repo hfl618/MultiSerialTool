@@ -60,7 +60,7 @@
                     <dxb:BarButtonItem Content="{loc:Translate 打开}"/>
                 </dxb:BarSubItem>
                 <dxb:BarSubItem Content="{loc:Translate 仪器}">
-                    <dxb:BarButtonItem Content="{loc:Translate 示波器}"/>
+                    <dxb:BarButtonItem Content="{loc:Translate 示波器}" ItemClick="OpenScope_Click"/>
                 </dxb:BarSubItem>
                 <dxb:BarSubItem Content="{loc:Translate 帮助}">
                     <dxb:BarButtonItem Content="{loc:Translate 设置}" Command="{Binding ShowSettingsCommand}"/>

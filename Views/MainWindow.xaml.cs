@@ -10,6 +10,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using MultiSerialTool.Models;
+using MultiSerialTool.Protocols.Instruments;
 
 namespace MultiSerialTool.Views;
 
@@ -23,6 +24,9 @@ public partial class MainWindow : Window
     /// 每秒刷新一次，显示完整日期与时、分、秒，作为测试记录时间基准。
     /// </summary>
     private readonly DispatcherTimer _clockTimer;
+
+    /// <summary>示波器窗口单例：重复点击菜单时聚焦已有窗口，避免开多个 SCPI 连接</summary>
+    private ScopeDemoWindow? _scopeWindow;
 
     public MainWindow()
     {
@@ -63,5 +67,21 @@ public partial class MainWindow : Window
     private void UpdateClock()
     {
         ClockItem.Content = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+    }
+
+    /// <summary>仪器 → 示波器：打开 MDO3024 实时采集窗口（单例）</summary>
+    private void OpenScope_Click(object sender, DevExpress.Xpf.Bars.ItemClickEventArgs e)
+    {
+        if (_scopeWindow is { IsLoaded: true })
+        {
+            if (_scopeWindow.WindowState == WindowState.Minimized)
+                _scopeWindow.WindowState = WindowState.Normal;
+            _scopeWindow.Activate();
+            return;
+        }
+
+        _scopeWindow = new ScopeDemoWindow();
+        _scopeWindow.Closed += (_, _) => _scopeWindow = null;
+        _scopeWindow.Show();
     }
 }

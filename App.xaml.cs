@@ -31,6 +31,8 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        // 统一刷新并关闭所有实时导出文件流，避免缓冲丢失与句柄残留
+        RealtimeFileRecorder.Current.CloseAll();
         LogService.Current.Info(Source, "Shutdown", $"程序退出，退出码 {e.ApplicationExitCode}");
         base.OnExit(e);
     }

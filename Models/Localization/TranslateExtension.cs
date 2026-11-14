@@ -10,7 +10,12 @@ namespace MultiSerialTool.Models.Localization;
 public sealed class TranslateExtension : MarkupExtension
 {
     /// <summary>源字符串（即语言包中的键）</summary>
-    public string Key { get; }
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>设计器/属性元素语法需要的无参构造</summary>
+    public TranslateExtension()
+    {
+    }
 
     /// <summary>XAML 特性语法：{loc:Translate 文本}</summary>
     public TranslateExtension(string key)

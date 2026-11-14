@@ -1,17 +1,32 @@
 [
   {
+    "version": "1.0.4",
+    "date": "2026-11-08",
+    "notes": [
+      "Oscilloscope window: added screenshot capture of the chart and measurement table, copied to the clipboard at 2x with a white background; exposed CaptureSnapshot and a snapshot directory for later export",
+      "Oscilloscope chart switched to a light theme; horizontal cursor color adjusted to stay readable on white",
+      "Oscilloscope axis labels, measurement table headers, table toolbar and measurement row names unified to English, fixing garbled CJK tick labels",
+      "Voltage/div lower limit extended to 1 mV/div, with extra decimals on mV-scale tick labels",
+      "Refactored the serial module into layered Connection/Framing/Rules/ViewModels/Views structure",
+      "Added instrument scope window and device panel view",
+      "Added real-time file recording service and storage module",
+      "Added checksum, frame parsing, rule engine and edge-case test projects",
+      "Added auto versioning, one-click release script, Inno Setup installer and OTA upgrade pipeline"
+    ]
+  },
+  {
     "version": "1.0.0",
     "date": "2026-11-08",
     "notes": [
       "Status bar clock is now synchronized in real time, refreshing every second with full date and time",
       "The clock shares the same source as logs (local system time) and can be used as the test record time baseline",
-      "Added serial hot-plug: device list auto-reffreshes on plug/unplug with 500ms debounce",
+      "Added serial hot-plug: device list auto-refreshes on plug/unplug with 500ms debounce",
       "Added auto-reconnect: a connected device is reconnected by VID/PID after reinsertion; manual disconnect disables it",
       "Hardened repeated hot-plug stability: rapid plug cycles inside the debounce window rebuild the stale handle, and reconnect waits for in-flight probing to finish to avoid port contention"
     ]
   },
   {
-    "version": "1.2.0",
+    "version": "0.2.0",
     "date": "2026-11-07",
     "notes": [
       "Added multi-language switching with runtime hot-swap between Chinese and English",
@@ -20,7 +35,7 @@
     ]
   },
   {
-    "version": "1.1.0",
+    "version": "0.1.0",
     "date": "2026-10-20",
     "notes": [
       "Added multi-serial, TCP and MQTT protocol framework",
@@ -28,7 +43,7 @@
     ]
   },
   {
-    "version": "1.0.0",
+    "version": "0.0.0",
     "date": "2026-09-30",
     "notes": [
       "First official release with multi-serial communication and logging"

@@ -102,7 +102,12 @@ MultiSerialTool/
 └─ Tests/                          # 独立控制台测试项目（不参与主项目编译）
    ├─ Program.cs                   # 串口回环测试 LoopbackTest
    ├─ LoopbackTest.csproj
-   └─ FindMatcherTests/            # 查找引擎单元测试
+   ├─ ChecksumTests/               # 校验和编码测试
+   ├─ ParserTests/                 # 帧解析测试
+   ├─ EngineTests/                 # 规则执行引擎端到端测试
+   ├─ EdgeCaseTests/               # 历史/查找/成帧/归组/评分等边界测试
+   ├─ FindMatcherTests/            # 查找引擎单元测试
+   └─ ServiceTests/                # 规则文件/CSV/落盘记录器服务测试
 ```
 
 > `.csproj` 中用 `<Compile Remove="Tests\**\*.cs" />` 把测试源码排除出主项目，避免重复的 AssemblyInfo 特性（CS0579）。
@@ -271,7 +276,7 @@ SerialDeviceInfo (一行设备)
 5. 打开失败处理：`UnauthorizedAccessException`（端口被占用）与 `IOException`（设备拔出/驱动异常）会被包装成中文提示后抛出，由上层捕获。
 6. 评分 ≥ 85 提前结束探测。
 
-端口参数固定：`8 数据位 / 无校验 / 1 停止位`，`DtrEnable` 与 `RtsEnable` 均为 true，读写超时 500ms。
+端口参数取自设置页（`config.json`）：默认波特率、数据位（7/8）、校验位（None/Odd/Even）、停止位（One/Two），读写超时 500ms；`DtrEnable` 与 `RtsEnable` 默认 false，不主动驱动控制线，避免开/关串口时把目标板 BOOT/EN 拉低进入烧写模式。参数对下一次新建连接生效，已建立的连接保持当前参数。
 
 ### 6.5 接收数据链路
 
@@ -537,21 +542,26 @@ WMI Win32_DeviceChangeEvent (EventType=2 到达 / 3 移除)
 
 ## 13. 测试项目（`Tests/`）
 
-两个独立控制台项目，均以 **dll 引用**（非 ProjectReference）主项目输出，规避 WPF 可执行项目的 CS0579 冲突。改主项目后需先构建主项目。
+七个独立控制台项目，均以 **dll 引用**（非 ProjectReference）主项目输出，规避 WPF 可执行项目的 CS0579 冲突。改主项目后需先构建主项目。
 
 | 项目 | 内容 |
 |---|---|
-| `LoopbackTest` | 需要一对虚拟串口（VSPD）或交叉线，默认 `COM9`/`COM8`。验证：连接打开、无探测数据时保留首选波特率、Modbus 二进制帧 RX（HEX/ASCII）、CRLF 文本帧 RX、TX 字节、中文 UTF-8 透传。 |
+| `ChecksumTests` | CRC16/CRC8/XOR/LRC/SUM 占位符编码，与 Python 独立实现交叉核对的固定向量。 |
+| `ParserTests` | `FrameParser` 各解析类型：regex、offset、modbus、大小端、位掩码、枚举、缩放、越界返回 null。 |
+| `EngineTests` | `RuleExecutionEngine` 端到端：初始查询、解析展示、自动应答、手动刷新、数值断言、ASCII/HEX 判别、规则迁移与幂等。 |
+| `EdgeCaseTests` | 发送历史上下翻、查找过滤边界、成帧/归组、数据质量评分、图表分段标记、版本号格式。 |
 | `FindMatcherTests` | 覆盖包含/全词/精确/正则匹配，以及 `|`/`\` 过滤表达式的组合、空表达式、非法正则错误回传。 |
+| `ServiceTests` | 内置 `DeviceRules/*.json` 结构与交叉引用校验、`CsvExporter` 转义/BOM、`FrameMatcher`、`RealtimeFileRecorder` 四种落盘格式、导出格式常量；含自动应答 ASCII 支持检测。 |
+| `LoopbackTest` | 需要一对虚拟串口（VSPD）或交叉线，默认 `COM9`/`COM8`。验证：连接打开、无探测数据时保留首选波特率、Modbus 二进制帧 RX（HEX/ASCII）、CRLF 文本帧 RX、TX 字节、中文 UTF-8 透传、多行上报块与含换行字节的二进制帧整帧透传。 |
 
 运行示例：
 
 ```bash
-dotnet run --project Tests/FindMatcherTests
+dotnet run --project Tests/FindMatcherTests/FindMatcherTests.csproj
 ```
 
 ```bash
-dotnet run --project Tests/LoopbackTest COM9 COM8
+dotnet run --project Tests/LoopbackTest.csproj COM9 COM8
 ```
 
 ---

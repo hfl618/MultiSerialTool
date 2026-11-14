@@ -3,20 +3,90 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
              xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid Margin="12">
         <DockPanel LastChildFill="True">
-            <!-- 返回按钮：设置页 DataContext 是 SettingsViewModel，
-                 用 RelativeSource 找到主窗口的 MainViewModel 上的命令 -->
-            <Button Content="{loc:Translate 返回设备区}"
-                    DockPanel.Dock="Right"
-                    HorizontalAlignment="Right"
-                    Padding="12,4"
-                    Command="{Binding DataContext.ShowWorkspaceCommand,
-                              RelativeSource={RelativeSource AncestorType=Window}}"/>
-            <TextBlock Text="{loc:Translate 设置}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
+
+            <!-- 顶部标题栏：标题 + 返回设备区 -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{loc:Translate 设置}"
+                           FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="{loc:Translate 返回设备区}" Padding="12,4"
+                        Command="{Binding DataContext.ShowWorkspaceCommand,
+                                  RelativeSource={RelativeSource AncestorType=Window}}"/>
+            </Grid>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <dxlc:LayoutControl Orientation="Vertical" ItemSpace="10">
+
+                    <!-- 串口通信参数：对下一次新建连接生效 -->
+                    <dxlc:LayoutGroup Header="{loc:Translate 串口通信参数}"
+                                      View="GroupBox" Orientation="Vertical">
+                        <dxlc:LayoutGroup Orientation="Horizontal" ItemSpace="16">
+                            <dxlc:LayoutItem Label="{loc:Translate 默认波特率}">
+                                <dxe:ComboBoxEdit Width="120" IsTextEditable="False"
+                                                  ItemsSource="{Binding BaudRateOptions}"
+                                                  SelectedItem="{Binding DefaultBaudRate}"/>
+                            </dxlc:LayoutItem>
+                            <dxlc:LayoutItem Label="{loc:Translate 数据位}">
+                                <dxe:ComboBoxEdit Width="80" IsTextEditable="False"
+                                                  ItemsSource="{Binding DataBitsOptions}"
+                                                  SelectedItem="{Binding DataBits}"/>
+                            </dxlc:LayoutItem>
+                            <dxlc:LayoutItem Label="{loc:Translate 校验位}">
+                                <dxe:ComboBoxEdit Width="90" IsTextEditable="False"
+                                                  ItemsSource="{Binding ParityOptions}"
+                                                  SelectedItem="{Binding Parity}"/>
+                            </dxlc:LayoutItem>
+                            <dxlc:LayoutItem Label="{loc:Translate 停止位}">
+                                <dxe:ComboBoxEdit Width="90" IsTextEditable="False"
+                                                  ItemsSource="{Binding StopBitsOptions}"
+                                                  SelectedItem="{Binding StopBits}"/>
+                            </dxlc:LayoutItem>
+                        </dxlc:LayoutGroup>
+                    </dxlc:LayoutGroup>
+
+                    <!-- 控制线：默认关闭，避免误拉低目标板 BOOT/EN 进入烧写模式 -->
+                    <dxlc:LayoutGroup Header="{loc:Translate 控制线}"
+                                      View="GroupBox" Orientation="Vertical">
+                        <dxe:CheckEdit Content="{loc:Translate 使能 DTR}" Margin="0,2"
+                                       IsChecked="{Binding DtrEnable}"/>
+                        <dxe:CheckEdit Content="{loc:Translate 使能 RTS}" Margin="0,2"
+                                       IsChecked="{Binding RtsEnable}"/>
+                        <TextBlock Text="{loc:Translate 控制线提示}" Foreground="#888888"
+                                   TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    </dxlc:LayoutGroup>
+
+                    <!-- 消息组包：按接收空闲间隔合并连续字节为一条消息 -->
+                    <dxlc:LayoutGroup Header="{loc:Translate 消息组包}"
+                                      View="GroupBox" Orientation="Vertical">
+                        <dxlc:LayoutItem Label="{loc:Translate 空闲间隔(ms)}">
+                            <dxe:SpinEdit Width="120" MinValue="5" MaxValue="500" Increment="5"
+                                          MaskType="Numeric" Mask="F0"
+                                          Value="{Binding MessageIdleGapMs, UpdateSourceTrigger=PropertyChanged}"/>
+                        </dxlc:LayoutItem>
+                        <TextBlock Text="{loc:Translate 组包提示}" Foreground="#888888"
+                                   TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    </dxlc:LayoutGroup>
+
+                    <!-- 底部操作：恢复默认 + 生效范围提示 -->
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Content="{loc:Translate 恢复默认}" Padding="12,4"
+                                Command="{Binding ResetCommand}"/>
+                        <TextBlock Text="{loc:Translate 参数生效提示}" Foreground="#888888"
+                                   VerticalAlignment="Center" Margin="16,0,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                </dxlc:LayoutControl>
+            </ScrollViewer>
         </DockPanel>
     </Grid>
 </UserControl>

@@ -7,7 +7,7 @@
         xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
         mc:Ignorable="d"
         Title="{loc:Translate 查找}"
-        Width="440" SizeToContent="Height"
+        Width="380" SizeToContent="Height"
         Topmost="True"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
@@ -19,7 +19,7 @@
 
     <StackPanel Margin="10,8">
 
-        <!-- 第一行：关键字输入 + 上一个/下一个图标按钮 + 关闭 -->
+        <!-- 第一行：关键字输入 -->
         <StackPanel Orientation="Horizontal">
             <TextBox x:Name="KeywordBox"
                      Width="250" Height="28"
@@ -45,15 +45,15 @@
                              Command="{Binding FindNextCommand}"/>
 
             <dx:SimpleButton x:Name="BtnClose" Margin="8,0,0,0"
-                             Width="56" Height="28"
+                             Width="30" Height="28"
                              Content="{loc:Translate 关闭}"
+                             Glyph="{dx:SvgImageSource Uri='/Assets/Icons/close/svg'}"
+GlyphWidth="16" GlyphHeight="16"
                              Click="BtnClose_Click"/>
         </StackPanel>
 
-        <!-- 第二行：匹配方式 + 区分大小写 + 过滤模式 -->
+        <!-- 第二行：匹配方式 -->
         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-            <TextBlock Text="{loc:Translate 匹配方式：}" VerticalAlignment="Center"
-                       Margin="0,0,4,0"/>
             <ComboBox x:Name="ModeBox" Width="86" Height="26"
                       VerticalContentAlignment="Center"
                       ItemsSource="{Binding ModeOptions}"
@@ -82,7 +82,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0"
-                       Text="{loc:Translate 过滤提示：| 表示或，\ 表示与}"
+                       Text="{loc:Translate 过滤：| 表示或，\ 表示与}"
                        Foreground="#888888" FontSize="12"
                        TextWrapping="Wrap"/>
             <TextBlock Grid.Column="1" x:Name="StatusBlock"

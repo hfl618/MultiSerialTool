@@ -15,7 +15,7 @@ namespace MultiSerialTool.ViewModels;
 public class MainViewModel : ViewModelBase, IDisposable
 {
     /// <summary>协议下拉选项</summary>
-    public List<string> Protocols { get; } = new() { "串口", "TCP", "MQTT" };
+    public List<string> Protocols { get; } = new() { "串口", "TCP", "仪器" };
 
     private string _currentProtocol = "串口";
     /// <summary>当前选中的协议</summary>
@@ -92,7 +92,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         ShowAboutCommand = new RelayCommand(ShowAbout);
     }
 
-    /// <summary>模态打开版本窗口；异常保护，避免窗口创建失败影响主程序</summary>
+    /// <summary>模态打开版本窗口 </summary>
     private void ShowAbout()
     {
         try
@@ -109,7 +109,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
-    /// <summary>切换界面语言；异常被吞掉，不影响主程序运行</summary>
+    /// <summary>切换界面语言 </summary>
     private void SwitchLanguage(string? culture)
     {
         if (string.IsNullOrWhiteSpace(culture))
@@ -141,6 +141,10 @@ public class MainViewModel : ViewModelBase, IDisposable
             "MQTT" => _mqttViewModel ??= new MqttViewModel(),
             _ => GetSerialViewModel()
         };
+
+        // 切回串口页：对所有在线端口静默补连，已连接设备保留不断开
+        if (CurrentViewModel is SerialViewModel serial)
+            serial.OnPageActivated();
     }
 
     /// <summary>串口页单例（懒加载，首次进入或启动时创建唯一实例）</summary>
