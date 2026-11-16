@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using MultiSerialTool.Models.Localization;
 using MultiSerialTool.Commands;
 using MultiSerialTool.Services;
@@ -607,11 +608,33 @@ public class SerialWorkspaceViewModel : ViewModelBase
         }
     }
 
-    /// <summary>发送：提交到当前设备的 Composer，并通过事件交给外层写端口</summary>
+    /// <summary>
+    /// 发送：HEX 开关打开时把发送框内容按十六进制解析成字节发出，
+    /// 关闭时按 UTF-8 文本发出；随后通过事件交给外层写端口。
+    /// </summary>
     private void Send()
     {
         if (_device is null || string.IsNullOrEmpty(SendText))
             return;
+
+        if (IsHexDisplay)
+        {
+            if (!TryParseHexPayload(SendText, out var hex))
+            {
+                System.Windows.MessageBox.Show(
+                    Loc.T("HEX 数据格式错误：请按 41 42 或 4142 的十六进制形式输入"),
+                    Loc.T("发送失败"),
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
+            _device.Composer.Commit();
+            RaisePropertyChanged(nameof(SendText));
+            TxSubmitted?.Invoke(SerialTxPayload.FromHex(hex));
+            LogService.Current.Info("Serial", "SendData", hex);
+            return;
+        }
 
         string text = _device.Composer.Commit();
         RaisePropertyChanged(nameof(SendText));
@@ -619,6 +642,41 @@ public class SerialWorkspaceViewModel : ViewModelBase
         TxSubmitted?.Invoke(SerialTxPayload.FromText(text));
         LogService.Current.Info("Serial", "SendData",
             text.Replace("\r", "\\r").Replace("\n", "\\n"));
+    }
+
+    /// <summary>
+    /// HEX 模式发送内容解析：接受 "41 42"、"0x41,0x42"、"4142" 等写法，
+    /// 输出归一化 HEX（"41 42"）；出现非十六进制字符或半字节时返回 false。
+    /// </summary>
+    private static bool TryParseHexPayload(string input, out string normalized)
+    {
+        normalized = string.Empty;
+
+        var buffer = new char[input.Length];
+        var length = 0;
+        foreach (var ch in input)
+        {
+            if (char.IsWhiteSpace(ch) || ch == ',')
+                continue;
+            buffer[length++] = ch;
+        }
+
+        var compact = new string(buffer, 0, length).Replace("0x", string.Empty,
+            StringComparison.OrdinalIgnoreCase);
+
+        if (compact.Length == 0 || compact.Length % 2 != 0)
+            return false;
+
+        var bytes = new byte[compact.Length / 2];
+        for (var i = 0; i < bytes.Length; i++)
+        {
+            if (!byte.TryParse(compact.AsSpan(i * 2, 2), NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture, out bytes[i]))
+                return false;
+        }
+
+        normalized = BitConverter.ToString(bytes).Replace('-', ' ');
+        return true;
     }
 
     /// <summary>清空当前设备的日志集合与图表归组历史</summary>

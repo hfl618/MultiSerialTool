@@ -62,10 +62,11 @@
                                        FontWeight="SemiBold"/>
                         </StackPanel>
 
-                        <!-- HEX/ASCII 显示切换 -->
+                        <!-- HEX 模式：勾选后发送框按十六进制解析，日志按 HEX 显示 -->
                         <CheckBox Grid.Column="1" VerticalAlignment="Center"
                                   Margin="0,0,12,0"
                                   Content="{loc:Translate HEX }"
+                                  ToolTip="{loc:Translate 勾选后发送框内容按十六进制解析为字节，日志以 HEX 显示}"
                                   IsChecked="{Binding IsHexDisplay}"/>
 
                         <!-- 右侧：图标按钮组 -->
