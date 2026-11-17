@@ -1,0 +1,93 @@
+name: Release
+
+# 只在打 tag 时构建并上传，日常 push 不产出任何 exe：
+#   git tag v1.0.6 && git push origin v1.0.6
+# 产物全部挂在 GitHub Release 上，本机不缓存任何版本包。
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 完整历史 + tag，csproj 的 CalculateVersion 依赖 git describe
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          dotnet publish MultiSerialTool.csproj -c Release -r win-x64 `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:DebugType=None `
+            --self-contained true -o publish/app
+          if ($LASTEXITCODE -ne 0) { throw "dotnet publish 失败" }
+          if (-not (Test-Path "publish/app/MultiSerialTool-hfl.exe")) { throw "未找到 MultiSerialTool-hfl.exe" }
+
+      - name: Zip package
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          Compress-Archive -Path "publish/app/*" -DestinationPath "publish/app-$version.zip" -CompressionLevel Optimal
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          & $iscc "/DAppVersion=$version" "installer\MultiSerialTool.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup 编译失败" }
+
+      - name: OTA manifest and release notes
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $zip = "publish/app-$version.zip"
+          $zipBytes = [IO.File]::ReadAllBytes($zip)
+          $sha256 = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($zipBytes)).Replace('-','')
+
+          # OTA 下载直连 Release 资产，无需自建下载服务器
+          $notes = ""
+          $log = "Assets/Changelog/changelog.zh-CN.json"
+          if (Test-Path $log) {
+            $entry = ([IO.File]::ReadAllText($log) | ConvertFrom-Json) | Where-Object { $_.version -eq $version } | Select-Object -First 1
+            if ($entry) { $notes = ($entry.notes -join "`n") }
+          }
+
+          $manifest = [ordered]@{
+            version      = $version
+            exeName      = "MultiSerialTool-hfl.exe"
+            forceUpdate  = $false
+            packageUrl   = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/app-$version.zip"
+            sha256       = $sha256
+            size         = (Get-Item $zip).Length
+            releaseNotes = $notes
+            publishedAt  = (Get-Date).ToString("yyyy-MM-ddTHH:mm:sszzz")
+          }
+          [IO.File]::WriteAllText("publish/update_manifest.json", ($manifest | ConvertTo-Json -Depth 3), (New-Object Text.UTF8Encoding($false)))
+          # body_path 必须存在，否则 action 会报错；无 changelog 条目时给占位说明
+          if (-not $notes) { $notes = "版本 $version：详见仓库 Assets/Changelog 中的更新记录。" }
+          [IO.File]::WriteAllText("publish/release_notes.md", $notes, (New-Object Text.UTF8Encoding($false)))
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: MultiSerialTool ${{ github.ref_name }}
+          body_path: publish/release_notes.md
+          files: |
+            publish/app-*.zip
+            publish/Setup_MultiSerialTool_*.exe
+            publish/update_manifest.json

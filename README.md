@@ -533,7 +533,7 @@ WMI Win32_DeviceChangeEvent (EventType=2 到达 / 3 移除)
 
 `MultiSerialTool.csproj` 要点：
 
-- `Version` 为**版本号单一来源**，`AssemblyName` / `Product` / `AssemblyTitle` 均由 `$(Version)` 派生，输出 `MultiSerialTool-<版本>-hfl.exe`。
+- `Version` 为**版本号单一来源**，其值由 Git tag（`vX.Y.Z`）驱动（见 §16），`AssemblyName` / `Product` / `AssemblyTitle` 均由 `$(Version)` 派生，输出 `MultiSerialTool-<版本>-hfl.exe`。
 - 语言包与 SVG 图标作为 `Resource` 嵌入程序集。
 - `Changelog/*.json`、`DeviceRules/*.json` 以 `CopyToOutputDirectory=PreserveNewest` 复制到输出目录，支持外部替换。
 - 依赖：`DevExpress.Images`、`devexpress.wpf.carousel`、`DevExpress.Wpf.Charts`、`DevExpress.Wpf.LayoutControl`、`devexpress.wpf.ribbon`、`System.IO.Ports`、`System.Management`。
@@ -592,6 +592,78 @@ dotnet build MultiSerialTool.csproj
 dotnet run --project MultiSerialTool.csproj
 ```
 
-- 需要 .NET 9 SDK 与 Windows；DevExpress NuGet 包需可访问（当前部署含私有源时请确认）。
+- 需要 .NET 9 SDK 与 Windows；DevExpress NuGet 包需可访问（24.2.8 已确认可从 nuget.org 公开源还原，CI 无需私有凭据）。
 - 运行数据目录：`%LocalAppData%\MultiSerialTool\`（`config.json`、`current.txt`、`Logs\`）。
 - 输出目录附带 `DeviceRules\` 与 `Changelog\`，可直接编辑。
+
+---
+
+## 16. 版本与发布（tag 驱动，本地不缓存历史包）
+
+### 16.1 版本号规则
+
+| 项 | 规则 |
+|---|---|
+| 唯一来源 | Git tag，格式必须是 `vX.Y.Z`（如 `v1.0.5`） |
+| 日常 commit | **不改变版本号**，只更新 `git describe` 距离与哈希 |
+| 无 tag 时 | 回退为 `1.0.<HEAD 提交数>`，仅用于首次引导，会在发布脚本里告警 |
+| 派生字段 | `Version` / `AssemblyVersion`(`x.y.z.0`) / `FileVersion` / `Product` 全部由 tag 展开 |
+
+对应实现：`MultiSerialTool.csproj` 的 `CalculateVersion` 目标（`git describe --tags --abbrev=0`，`2>nul` 抑制无 tag 时的 fatal 噪声），以及 `build_release.ps1` 第 1 节。
+
+### 16.2 发版三步
+
+```powershell
+# 1) 确认工作区干净并提交
+git status --short
+git commit -am "..."
+
+# 2) 打 tag（版本号=tag，无需改任何文件）
+git tag -a v1.0.6 -m "1.0.6: xxx"
+
+# 3) 二选一
+git push origin v1.0.6         # A. 云端构建：Actions 自动构建并挂 Release，本机零产物
+.\build_release.ps1 -Upload    # B. 本机构建：上传 Release 后自动删除本地 zip/安装包
+```
+
+### 16.3 产物去哪里
+
+| 载体 | 放什么 | 说明 |
+|---|---|---|
+| GitHub Release assets | `app-<ver>.zip`、`Setup_MultiSerialTool_<ver>.exe`、`update_manifest.json` | 单文件 ≤ 2 GiB，永久保存，**不进 git 历史**，clone 不下载 |
+| GitHub Packages (NuGet) | `.nupkg` 类库 | 桌面 exe 不适用（无法 `dotnet tool install` 一个 WPF 程序） |
+| Actions Artifacts | 临时调试产物 | 90 天自动删除，不能作为发版归档 |
+
+`.gitignore` 已忽略 `publish/`，因此二进制从不进入仓库。
+
+### 16.4 OTA 清单地址（客户端可固定写死）
+
+```
+https://github.com/hfl618/MultiSerialTool/releases/latest/download/update_manifest.json
+```
+
+`packageUrl` 指向同一次 Release 的 `app-<ver>.zip`，例如
+`https://github.com/hfl618/MultiSerialTool/releases/download/v1.0.5/app-1.0.5.zip`。
+公开仓库匿名可下；私有仓库需鉴权（token 不要写进客户端）。`HttpClient` 默认跟随 302 跳转，客户端代码无需改动。
+
+### 16.5 本地不缓存历史包
+
+- `-Upload`：上传成功后自动删除本次的 zip 与安装包（加 `-KeepArtifacts` 可保留）。
+- `-KeepLast N`：仅保留最近 N 个版本的 zip 与安装包，其余本地删除。
+- Actions 方式：构建发生在 `windows-latest` runner 上，本机不产生任何包。
+
+### 16.6 包体实测（不要把框架依赖版当瘦身手段）
+
+| 发布模式 | 实测结果 |
+|---|---|
+| 自包含 + 单文件压缩（默认） | zip **107.6 MB** |
+| 框架依赖 + 单文件 | exe 108.1 MB + `libSkiaSharp.dll` 10.9 MB + 其它 ≈ **121 MB**（FD 模式禁止 `EnableCompressionInSingleFile`，反而更大） |
+
+体积主要来自 DevExpress WPF 组件（Charts / Grid / Ribbon / LayoutControl / Carousel / Images），要减小只能裁剪依赖，与打包方式无关。
+
+### 16.7 注意事项
+
+1. tag 必须是 `vX.Y.Z`；`build_release.ps1` 会校验格式并直接报错，避免 `AssemblyVersion` 非法。
+2. 发布脚本默认拒绝工作区有未提交改动（保证包与 commit 可追溯），测试包用 `-AllowDirty`。
+3. `changelog.zh-CN.json` / `changelog.en-US.json` 必须包含当前版本条目：关于页显示更新说明，GitHub Release 正文也用它自动生成。
+4. Release 一旦对外分发不要删除 tag，否则 OTA 的 `packageUrl` 会 404。

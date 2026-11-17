@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
 
-    <!-- 主、次版本号仅在需要发大版本时手动改；修订号由 Git 提交数自动生成（见下方 CalculateVersion） -->
+    <!-- 主、次版本号仅在无 tag 时作为回退；正式版本号由 Git tag（vX.Y.Z）决定，见下方 CalculateVersion -->
     <VersionMajor>1</VersionMajor>
     <VersionMinor>0</VersionMinor>
     <!-- 输出 exe 名固定（WPF 临时编译程序集不支持动态 AssemblyName，固定名也让 OTA 替换更简单） -->
@@ -69,11 +69,16 @@
   </ItemGroup>
 
   <!--
-    自动版本号：版本 = 主版本.次版本.Git提交数（如 1.0.3）
-    每次 git commit 后修订号自动 +1，无需手动修改；无 .git 时回退为 0。
+    自动版本号：版本号唯一权威来源是 Git tag（形如 v1.0.5）。
+    日常 commit 不再改变版本号，只有新增 tag 才产生新版本；无 tag 时回退为 主版本.次版本.提交数。
     工作区有未提交改动时，InformationalVersion 追加 -dev 标记测试包。
   -->
   <Target Name="CalculateVersion">
+    <!-- 2>nul 必须保留：无 tag 时 git 会把 "fatal: No names found..." 写到 stderr，
+         Exec 的 ConsoleToMSBuild 会把它并进 ConsoleOutput，导致版本号被污染 -->
+    <Exec Command="git describe --tags --abbrev=0 --match &quot;v*&quot; 2&gt;nul" ConsoleToMSBuild="true" WorkingDirectory="$(MSBuildProjectDirectory)" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitTag" />
+    </Exec>
     <Exec Command="git rev-list --count HEAD" ConsoleToMSBuild="true" WorkingDirectory="$(MSBuildProjectDirectory)" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low">
       <Output TaskParameter="ConsoleOutput" PropertyName="GitCommitCount" />
     </Exec>
@@ -84,15 +89,26 @@
     <PropertyGroup>
       <PatchVersion Condition="'$(GitCommitCount)' != ''">$(GitCommitCount)</PatchVersion>
       <PatchVersion Condition="'$(GitCommitCount)' == ''">0</PatchVersion>
+      <!-- tag 去掉前导 v：v1.0.5 → 1.0.5 -->
+      <GitTagVersion Condition="'$(GitTag)' != ''">$(GitTag)</GitTagVersion>
+      <GitTagVersion Condition="'$(GitTag)' != '' and $(GitTag.StartsWith('v'))">$([System.String]::Copy('$(GitTag)').Substring(1))</GitTagVersion>
       <!-- 同一 PropertyGroup 内顺序求值：先定 Version，再展开引用它的 Product 等字符串属性 -->
-      <Version>$(VersionMajor).$(VersionMinor).$(PatchVersion)</Version>
+      <Version Condition="'$(GitTagVersion)' != ''">$(GitTagVersion)</Version>
+      <Version Condition="'$(GitTagVersion)' == ''">$(VersionMajor).$(VersionMinor).$(PatchVersion)</Version>
       <Product>MultiSerialTool-$(Version)-hfl</Product>
       <AssemblyTitle>MultiSerialTool-$(Version)-hfl</AssemblyTitle>
-      <AssemblyVersion>$(VersionMajor).$(VersionMinor).$(PatchVersion).0</AssemblyVersion>
-      <FileVersion>$(VersionMajor).$(VersionMinor).$(PatchVersion).0</FileVersion>
-      <!-- 干净工作区：1.0.3+6778a73；有未提交改动：1.0.3-dev+6778a73-dirty -->
-      <InformationalVersion Condition="!$(GitDescribe.EndsWith('-dirty'))">$(Version)+$(GitDescribe)</InformationalVersion>
-      <InformationalVersion Condition="$(GitDescribe.EndsWith('-dirty'))">$(Version)-dev+$(GitDescribe)</InformationalVersion>
+      <!-- AssemblyVersion/FileVersion 必须四段数字，tag 统一用 vX.Y.Z，缺失时回退到提交数版本 -->
+      <AssemblyVersion Condition="'$(GitTagVersion)' != ''">$(GitTagVersion).0</AssemblyVersion>
+      <AssemblyVersion Condition="'$(GitTagVersion)' == ''">$(VersionMajor).$(VersionMinor).$(PatchVersion).0</AssemblyVersion>
+      <FileVersion Condition="'$(GitTagVersion)' != ''">$(GitTagVersion).0</FileVersion>
+      <FileVersion Condition="'$(GitTagVersion)' == ''">$(VersionMajor).$(VersionMinor).$(PatchVersion).0</FileVersion>
+      <!-- describe 结果同样去掉前导 v；无 .git 或未安装 git 时给占位值 -->
+      <GitDescribeClean Condition="'$(GitDescribe)' != '' and $(GitDescribe.StartsWith('v'))">$([System.String]::Copy('$(GitDescribe)').Substring(1))</GitDescribeClean>
+      <GitDescribeClean Condition="'$(GitDescribe)' != '' and !$(GitDescribe.StartsWith('v'))">$(GitDescribe)</GitDescribeClean>
+      <GitDescribeClean Condition="'$(GitDescribe)' == ''">nogit</GitDescribeClean>
+      <!-- 干净工作区：1.0.5+2-g6778a73；有未提交改动：1.0.5-dev+2-g6778a73-dirty -->
+      <InformationalVersion Condition="!$(GitDescribeClean.EndsWith('-dirty'))">$(Version)+$(GitDescribeClean)</InformationalVersion>
+      <InformationalVersion Condition="$(GitDescribeClean.EndsWith('-dirty'))">$(Version)-dev+$(GitDescribeClean)</InformationalVersion>
     </PropertyGroup>
   </Target>
 
