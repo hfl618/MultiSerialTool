@@ -121,6 +121,21 @@ public class SettingsViewModel : ViewModelBase
         }
     }
 
+    private bool _autoDtrEnable;
+    /// <summary>打开端口时自动使能 DTR（默认开启）</summary>
+    public bool AutoDtrEnable
+    {
+        get => _autoDtrEnable;
+        set
+        {
+            if (SetProperty(ref _autoDtrEnable, value))
+            {
+                _cfg.AutoDtrEnable = value;
+                Save();
+            }
+        }
+    }
+
     private double _messageIdleGapMs;
     /// <summary>消息组包空闲间隔（毫秒，5–500）</summary>
     public double MessageIdleGapMs
@@ -149,6 +164,7 @@ public class SettingsViewModel : ViewModelBase
         _stopBits = StopBitsOptions.Contains(_cfg.StopBits) ? _cfg.StopBits : "One";
         _dtrEnable = _cfg.DtrEnable;
         _rtsEnable = _cfg.RtsEnable;
+        _autoDtrEnable = _cfg.AutoDtrEnable;
         _messageIdleGapMs = Math.Clamp(_cfg.MessageIdleGapMs, 5, 500);
 
         RaisePropertyChanged(nameof(DefaultBaudRate));
@@ -157,6 +173,7 @@ public class SettingsViewModel : ViewModelBase
         RaisePropertyChanged(nameof(StopBits));
         RaisePropertyChanged(nameof(DtrEnable));
         RaisePropertyChanged(nameof(RtsEnable));
+        RaisePropertyChanged(nameof(AutoDtrEnable));
         RaisePropertyChanged(nameof(MessageIdleGapMs));
     }
 
@@ -170,6 +187,7 @@ public class SettingsViewModel : ViewModelBase
         _cfg.StopBits = defaults.StopBits;
         _cfg.DtrEnable = defaults.DtrEnable;
         _cfg.RtsEnable = defaults.RtsEnable;
+        _cfg.AutoDtrEnable = defaults.AutoDtrEnable;
         _cfg.MessageIdleGapMs = defaults.MessageIdleGapMs;
         Save();
         LoadFromConfig();

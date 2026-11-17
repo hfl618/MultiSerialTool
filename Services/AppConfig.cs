@@ -42,6 +42,12 @@ public class AppConfig
     /// <summary>是否使能 RTS 控制线（默认关闭；RS485 方向脚占用 RTS 时再按需开启）</summary>
     public bool RtsEnable { get; set; }
 
+    /// <summary>
+    /// 打开端口时自动使能 DTR（默认开启）。部分设备（如带 DTR 控制的网关）
+    /// 不拉高 DTR 就不发送数据；关闭后按 DtrEnable 的设置原样处理。
+    /// </summary>
+    public bool AutoDtrEnable { get; set; } = true;
+
     /// <summary>示波器 LAN 地址（连接成功时保存，下次启动自动带出）</summary>
     public string ScopeHost { get; set; } = "192.168.2.100";
 

@@ -43,6 +43,9 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
     /// <summary>当前活动端口（字段刷新请求按此定位引擎）</summary>
     private string? _activePort;
 
+    /// <summary>端口刷新是否在进行中（后台 WMI 查询期间不重入）</summary>
+    private bool _refreshing;
+
     /// <summary>热插拔 WMI 监听</summary>
     private readonly SerialDeviceWatcher _deviceWatcher = new();
 
@@ -104,7 +107,7 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
         Title = Loc.T("串口");
         Workspace = _workspace;
         ToggleConnectCommand = new RelayCommand(ToggleConnect);
-        RefreshCommand = new RelayCommand(() => RefreshPorts());
+        RefreshCommand = new RelayCommand(() => _ = RefreshPortsAsync());
 
         _workspace.TxSubmitted += OnTxSubmitted;
         _workspace.FieldRequested += OnFieldRequested;
@@ -124,7 +127,7 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
         _deviceWatcher.DeviceChanged += OnDeviceChanged;
         _deviceWatcher.Start();
 
-        LoadPorts();
+        _ = LoadPortsAsync();
 
         // 把设备集合注入工作区，图表页可独立选择数据源设备（默认第一个）
         _workspace.AttachDevices(Devices);
@@ -153,21 +156,28 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
         _debounceTimer.Start();
     }
 
-    private void OnDebounceTick(object? sender, EventArgs e)
+    private async void OnDebounceTick(object? sender, EventArgs e)
     {
         _debounceTimer.Stop();
-        HandleDeviceChanged();
+        try
+        {
+            await HandleDeviceChangedAsync();
+        }
+        catch (Exception ex)
+        {
+            LogService.Current.Error("Serial", $"热插拔处理失败：{ex.Message}");
+        }
     }
 
     /// <summary>
     /// 热插拔处理：差量刷新设备列表，对登记过自动重连的新设备静默发起连接。
     /// </summary>
-    private void HandleDeviceChanged()
+    private async Task HandleDeviceChangedAsync()
     {
         bool removalOccurred = _pendingRemoval;
         _pendingRemoval = false;
 
-        var addedDevices = RefreshPorts();
+        var addedDevices = await RefreshPortsAsync();
 
         foreach (var device in addedDevices)
         {
@@ -316,16 +326,25 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
     /// 再对所有在线但未连接/连接失败的端口静默发起连接；已连接/连接中的设备保留不动，
     /// 不主动断开。应用启动与设置/LOG 覆盖层返回不经过此入口，因此不在这里补连。
     /// </summary>
-    public void OnPageActivated()
+    public void OnPageActivated() => _ = ActivatePageAsync();
+
+    private async Task ActivatePageAsync()
     {
-        RefreshPorts();
-
-        foreach (var device in Devices.ToList())
+        try
         {
-            if (device.State is DeviceState.Connected or DeviceState.Connecting)
-                continue;
+            await RefreshPortsAsync();
 
-            StartConnect(device, silent: true);
+            foreach (var device in Devices.ToList())
+            {
+                if (device.State is DeviceState.Connected or DeviceState.Connecting)
+                    continue;
+
+                StartConnect(device, silent: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            LogService.Current.Error("Serial", $"串口页激活失败：{ex.Message}");
         }
     }
 
@@ -551,6 +570,8 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
 
     /// <summary>
     /// 引擎产出待发帧（初始查询/自动应答）：版本校验后按载荷格式写真实连接并记录 TX 日志。
+    /// 写端口在后台线程执行——端口故障时 Write 会一直阻塞到 WriteTimeout，
+    /// 放在 UI 线程会让连接后批量下发查询帧时界面周期性卡死。
     /// </summary>
     private void OnEngineFrameReady(
         SerialDeviceInfo device, int version, SerialTxPayload payload)
@@ -567,40 +588,58 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
             || !_connections.TryGetValue(device.Name, out var connection))
             return;
 
-        try
+        _ = Task.Run(() =>
         {
             byte[] txBytes;
             string txHex;
-            if (payload.IsHex)
+            try
             {
-                txHex = FrameMatcher.NormalizeHex(payload.Text);
-                txBytes = Crc16.HexToBytes(txHex);
-                connection.WriteBytes(txBytes);
+                if (payload.IsHex)
+                {
+                    txHex = FrameMatcher.NormalizeHex(payload.Text);
+                    txBytes = Crc16.HexToBytes(txHex);
+                    connection.WriteBytes(txBytes);
+                }
+                else
+                {
+                    txBytes = System.Text.Encoding.UTF8.GetBytes(payload.Text);
+                    txHex = BitConverter.ToString(txBytes).Replace('-', ' ');
+                    connection.Write(payload.Text);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                txBytes = System.Text.Encoding.UTF8.GetBytes(payload.Text);
-                txHex = BitConverter.ToString(txBytes).Replace('-', ' ');
-                connection.Write(payload.Text);
+                LogService.Current.Error("Serial", $"引擎帧发送失败：{ex.Message}");
+                return;
             }
 
-            device.LogEntries.Add(new LogEntry
+            var time = DateTime.Now;
+            DispatchToUi(() =>
             {
-                Time = DateTime.Now,
-                IsTx = true,
-                Text = payload.Text,
-                HexText = txHex,
-                Bytes = txBytes
+                device.LogEntries.Add(new LogEntry
+                {
+                    Time = time,
+                    IsTx = true,
+                    Text = payload.Text,
+                    HexText = txHex,
+                    Bytes = txBytes
+                });
+                RealtimeFileRecorder.Current.Write(device, isTx: true, time,
+                    txHex, payload.Text);
+                TestSessionService.Current.Record(device, isTx: true, time,
+                    txHex, payload.Text);
             });
-            RealtimeFileRecorder.Current.Write(device, isTx: true, DateTime.Now,
-                txHex, payload.Text);
-            TestSessionService.Current.Record(device, isTx: true, DateTime.Now,
-                txHex, payload.Text);
-        }
-        catch (Exception ex)
-        {
-            LogService.Current.Error("Serial", $"引擎帧发送失败：{ex.Message}");
-        }
+        });
+    }
+
+    /// <summary>把 UI 绑定相关的收尾动作封送回 UI 线程（无 UI 上下文时直接执行）</summary>
+    private static void DispatchToUi(Action action)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher is null || dispatcher.CheckAccess())
+            action();
+        else
+            dispatcher.BeginInvoke(action);
     }
 
     /// <summary>移除并解绑规则执行引擎</summary>
@@ -683,6 +722,7 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
     /// <summary>
     /// 工作区发送事件：TX 先记录到当前设备日志，再写入其真实连接。
     /// HEX 载荷按原始字节写出，文本载荷按 UTF-8 写出。
+    /// 写端口放在后台线程：故障端口的 Write 会阻塞到 WriteTimeout，不能拖住 UI。
     /// 未连接或写入失败时提示，异常不逃逸、软件继续运行。
     /// </summary>
     private void OnTxSubmitted(SerialTxPayload payload)
@@ -722,97 +762,128 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
             return;
         }
 
-        try
+        _ = Task.Run(() =>
         {
-            if (payload.IsHex)
-                connection.WriteBytes(txBytes);
-            else
-                connection.Write(payload.Text);
+            try
+            {
+                if (payload.IsHex)
+                    connection.WriteBytes(txBytes);
+                else
+                    connection.Write(payload.Text);
+            }
+            catch (Exception ex)
+            {
+                LogService.Current.Error("Serial", $"{device.Name} 发送失败：{ex.Message}");
+                DispatchToUi(() => ShowError(ex.Message, Loc.T("发送失败")));
+                return;
+            }
 
-            RealtimeFileRecorder.Current.Write(device, isTx: true, DateTime.Now,
-                txHex, payload.Text);
-            TestSessionService.Current.Record(device, isTx: true, DateTime.Now,
-                txHex, payload.Text);
-        }
-        catch (Exception ex)
-        {
-            LogService.Current.Error("Serial", $"{device.Name} 发送失败：{ex.Message}");
-            ShowError(ex.Message, Loc.T("发送失败"));
-        }
+            var time = DateTime.Now;
+            DispatchToUi(() =>
+            {
+                RealtimeFileRecorder.Current.Write(device, isTx: true, time,
+                    txHex, payload.Text);
+                TestSessionService.Current.Record(device, isTx: true, time,
+                    txHex, payload.Text);
+            });
+        });
     }
 
     /// <summary>
     /// 首次枚举本机所有 COM 口并生成行数据。
+    /// WMI 补全信息需 1 秒以上，放到后台线程，避免启动阶段界面无响应。
     /// </summary>
-    private void LoadPorts()
+    private async Task LoadPortsAsync()
     {
-        var descriptors = SerialPortInfoProvider.QueryAll();
-        foreach (string port in SerialPort.GetPortNames())
-            Devices.Add(CreateDevice(port, descriptors.GetValueOrDefault(port)));
+        try
+        {
+            var descriptors = await Task.Run(SerialPortInfoProvider.QueryAll);
+
+            foreach (string port in SerialPort.GetPortNames())
+                Devices.Add(CreateDevice(port, descriptors.GetValueOrDefault(port)));
+        }
+        catch (Exception ex)
+        {
+            LogService.Current.Error("Serial", $"串口枚举失败：{ex.Message}");
+        }
     }
 
     /// <summary>
     /// 重新扫描并差量更新：
     /// 已消失的口（含已连接）关闭移除，新出现的口加入，未变化的保留原状态。
     /// 返回本次新加入的设备列表，供热插拔自动重连判断。
+    /// WMI 查询在后台线程完成，UI 线程只做集合更新，避免刷新时界面卡顿。
     /// </summary>
-    private List<SerialDeviceInfo> RefreshPorts()
+    private async Task<List<SerialDeviceInfo>> RefreshPortsAsync()
     {
-        string[] currentPorts = SerialPort.GetPortNames();
-        var currentSet = new HashSet<string>(currentPorts, StringComparer.OrdinalIgnoreCase);
-        var descriptors = SerialPortInfoProvider.QueryAll();
+        // 热插拔去抖与手动刷新可能叠加触发：后台查询期间不重入
+        if (_refreshing)
+            return new List<SerialDeviceInfo>();
 
-        bool selectedRemoved = false;
-
-        // 移除已消失的口
-        foreach (var existing in Devices.Where(d => !currentSet.Contains(d.Name)).ToList())
+        _refreshing = true;
+        try
         {
-            existing.ConnectVersion++;
-            existing.PropertyChanged -= OnDevicePropertyChanged;
+            var descriptors = await Task.Run(SerialPortInfoProvider.QueryAll);
 
-            if (ReferenceEquals(existing, _selectedDevice))
-                selectedRemoved = true;
+            string[] currentPorts = SerialPort.GetPortNames();
+            var currentSet = new HashSet<string>(currentPorts, StringComparer.OrdinalIgnoreCase);
 
-            if (_connections.TryGetValue(existing.Name, out var connection))
+            bool selectedRemoved = false;
+
+            // 移除已消失的口
+            foreach (var existing in Devices.Where(d => !currentSet.Contains(d.Name)).ToList())
             {
-                connection.Dispose();
-                _connections.Remove(existing.Name);
+                existing.ConnectVersion++;
+                existing.PropertyChanged -= OnDevicePropertyChanged;
+
+                if (ReferenceEquals(existing, _selectedDevice))
+                    selectedRemoved = true;
+
+                if (_connections.TryGetValue(existing.Name, out var connection))
+                {
+                    connection.Dispose();
+                    _connections.Remove(existing.Name);
+                }
+                RemoveFraming(existing.Name);
+                RemoveEngine(existing.Name);
+                Devices.Remove(existing);
             }
-            RemoveFraming(existing.Name);
-            RemoveEngine(existing.Name);
-            Devices.Remove(existing);
+
+            // 加入新插入的口
+            var existingNames = new HashSet<string>(
+                Devices.Select(d => d.Name), StringComparer.OrdinalIgnoreCase);
+
+            var addedDevices = new List<SerialDeviceInfo>();
+            foreach (string port in currentPorts)
+            {
+                if (existingNames.Contains(port))
+                    continue;
+
+                var device = CreateDevice(port, descriptors.GetValueOrDefault(port));
+                Devices.Add(device);
+                addedDevices.Add(device);
+            }
+
+            // 选中设备已消失：改选剩余首行，没有则清空，避免工作区悬空指向已移除设备
+            if (selectedRemoved)
+                SelectedDevice = Devices.FirstOrDefault();
+
+            // 图表数据源设备被拔出：回退到剩余首行，保证图表仍有有效数据源
+            if (_workspace.ChartSelectedDevice is not null
+                && !Devices.Contains(_workspace.ChartSelectedDevice))
+            {
+                _workspace.ChartSelectedDevice = Devices.FirstOrDefault();
+            }
+
+            LogService.Current.Debug("Serial",
+                $"串口刷新完成，当前 {Devices.Count} 个端口，新增 {addedDevices.Count} 个");
+
+            return addedDevices;
         }
-
-        // 加入新插入的口
-        var existingNames = new HashSet<string>(
-            Devices.Select(d => d.Name), StringComparer.OrdinalIgnoreCase);
-
-        var addedDevices = new List<SerialDeviceInfo>();
-        foreach (string port in currentPorts)
+        finally
         {
-            if (existingNames.Contains(port))
-                continue;
-
-            var device = CreateDevice(port, descriptors.GetValueOrDefault(port));
-            Devices.Add(device);
-            addedDevices.Add(device);
+            _refreshing = false;
         }
-
-        // 选中设备已消失：改选剩余首行，没有则清空，避免工作区悬空指向已移除设备
-        if (selectedRemoved)
-            SelectedDevice = Devices.FirstOrDefault();
-
-        // 图表数据源设备被拔出：回退到剩余首行，保证图表仍有有效数据源
-        if (_workspace.ChartSelectedDevice is not null
-            && !Devices.Contains(_workspace.ChartSelectedDevice))
-        {
-            _workspace.ChartSelectedDevice = Devices.FirstOrDefault();
-        }
-
-        LogService.Current.Debug("Serial",
-            $"串口刷新完成，当前 {Devices.Count} 个端口，新增 {addedDevices.Count} 个");
-
-        return addedDevices;
     }
 
     private static SerialDeviceInfo CreateDevice(string port, SerialPortDescriptor? descriptor)

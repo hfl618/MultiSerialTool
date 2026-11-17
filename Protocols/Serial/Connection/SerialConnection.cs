@@ -19,8 +19,9 @@ public sealed class SerialConnection : IDisposable
     private static readonly int[] CandidateBaudRates =
         { 115200, 57600, 38400, 19200, 9600, 4800, 2400, 1200 };
 
-    /// <summary>每个候选速率的探测监听时长（毫秒），保证至少收到一帧</summary>
-    private const int ProbeDurationMs = 600;
+    /// <summary>每个候选速率的探测监听时长（毫秒）：只用于判断首选速率是否正确，
+    /// 收到足够样本会提前结束，避免连接时固定等待</summary>
+    private const int ProbeDurationMs = 350;
 
     /// <summary>原始字节环形缓冲的容量上限（1 MB），超出后丢弃最旧字节</summary>
     private const int MaxBufferedBytes = 1024 * 1024;
@@ -28,6 +29,9 @@ public sealed class SerialConnection : IDisposable
     private readonly string _portName;
     private readonly int _preferredBaudRate;
     private SerialPort? _port;
+
+    /// <summary>写入门闩：同一端口只允许一个写者，避免后台批量下发时互相挤占驱动缓冲</summary>
+    private readonly object _writeGate = new();
 
     /// <summary>原始字节流缓冲，线程安全</summary>
     private readonly ConcurrentQueue<byte> _rawBuffer = new();
@@ -61,15 +65,114 @@ public sealed class SerialConnection : IDisposable
     /// </summary>
     public void Open()
     {
-        BaudRate = DetectBaudRate(_portName, _preferredBaudRate);
+        // 先用首选速率打开并监听：设备静默（收不到字节）或数据质量已确认时，
+        // 直接沿用这次打开的端口。部分 USB 转串设备（如带 DTR 控制的网关）
+        // 在关闭再重开后要十几秒才恢复发送，多一次 Open/Close 就会表现为“连上收不到数据”。
+        var port = OpenPortAt(_portName, _preferredBaudRate);
+        var (sampleData, frameErrors) = Sample(port, ProbeDurationMs);
+        var score = ScoreData(sampleData, frameErrors);
 
-        _port = CreatePort(_portName, BaudRate);
-        _port.Open();
+        int baud = _preferredBaudRate;
+        if (sampleData.Count > 0 && score < 85)
+        {
+            // 首选速率收到的数据质量差（波特率不匹配）：换其余候选速率探测
+            port.Dispose();
+            baud = ProbeOtherRates(_portName, _preferredBaudRate);
+            port = OpenPortAt(_portName, baud);
+        }
+
+        BaudRate = baud;
+        _port = port;
+
         // 部分 USB 转串驱动在 Open 瞬间会先把控制线按默认态上线，再被设置项覆盖；
         // Open 之后按配置重新落一次控制线状态，避免残留高电平边沿拉低 BOOT/EN。
-        ApplyControlLines(_port);
-        _port.DataReceived += OnDataReceived;
-        _port.ErrorReceived += OnErrorReceived;
+        ApplyControlLines(port);
+        port.DataReceived += OnDataReceived;
+        port.ErrorReceived += OnErrorReceived;
+
+        var cfg = AppConfig.Load();
+        if (cfg.AutoDtrEnable && !cfg.DtrEnable)
+            LogService.Current.Info("Serial",
+                $"{_portName} 打开端口时已自动使能 DTR（可在设置-控制线中关闭）");
+    }
+
+    /// <summary>按指定速率打开端口，把驱动异常翻译成用户可读提示</summary>
+    private static SerialPort OpenPortAt(string portName, int baudRate)
+    {
+        var port = CreatePort(portName, baudRate);
+        try
+        {
+            port.Open();
+            ApplyControlLines(port);
+            return port;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            port.Dispose();
+            throw new UnauthorizedAccessException(
+                $"串口 {portName} 已被其他程序占用，请关闭占用该端口的软件后重试。", ex);
+        }
+        catch (IOException ex)
+        {
+            port.Dispose();
+            throw new IOException(
+                $"串口 {portName} 打开失败，设备可能已拔出或驱动异常：{ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// 在指定时长内收集端口到达的字节与帧错误计数。
+    /// 样本足够（16 字节且无帧错误）即提前结束，缩短连接时的固定等待。
+    /// </summary>
+    private static (List<byte> Data, int FrameErrors) Sample(SerialPort port, int durationMs)
+    {
+        int frameErrors = 0;
+        void OnProbeError(object? s, SerialErrorReceivedEventArgs ea)
+        {
+            if (ea.EventType is SerialError.Frame or SerialError.RXParity or SerialError.Overrun)
+                Interlocked.Increment(ref frameErrors);
+        }
+
+        port.ErrorReceived += OnProbeError;
+
+        var data = new List<byte>();
+        var stopwatch = Stopwatch.StartNew();
+        while (stopwatch.ElapsedMilliseconds < durationMs)
+        {
+            Thread.Sleep(20);
+
+            int available;
+            try
+            {
+                available = port.BytesToRead;
+            }
+            catch (IOException)
+            {
+                break;
+            }
+
+            if (available <= 0)
+                continue;
+
+            var buffer = new byte[available];
+            int read;
+            try
+            {
+                read = port.Read(buffer, 0, available);
+            }
+            catch (IOException)
+            {
+                break;
+            }
+
+            data.AddRange(buffer.Take(read));
+
+            if (data.Count >= 16 && Volatile.Read(ref frameErrors) == 0)
+                break;
+        }
+
+        port.ErrorReceived -= OnProbeError;
+        return (data, frameErrors);
     }
 
     /// <summary>关闭端口，停止接收；任何清理异常都吞掉，保证不向外抛</summary>
@@ -109,86 +212,18 @@ public sealed class SerialConnection : IDisposable
     }
 
     /// <summary>
-    /// 自动波特率探测：逐速率打开监听，按接收数据质量评分，取最高分。
-    /// 首选速率整段收不到字节时直接定案（设备静默换速率也收不到），
-    /// 不遍历其余候选，避免反复 Open/Close 的控制线边沿把目标板打进烧录模式。
+    /// 首选速率数据质量不佳时，按候选速率逐个打开监听并评分，返回最优速率。
+    /// 都不优于首选时保留首选速率。
     /// </summary>
-    private static int DetectBaudRate(string portName, int preferredBaudRate)
+    private static int ProbeOtherRates(string portName, int preferredBaudRate)
     {
         int bestBaud = preferredBaudRate;
         int bestScore = 0;
 
-        // 直连优先：先评估配置/上次成功波特率，命中即提前结束；其余候选排在后面，
-        // 减少在错误速率上反复 Open/Close 产生的控制线脉冲。
-        var ordered = CandidateBaudRates
-            .Where(b => b != preferredBaudRate)
-            .Prepend(preferredBaudRate)
-            .ToArray();
-
-        foreach (int baud in ordered)
+        foreach (int baud in CandidateBaudRates.Where(b => b != preferredBaudRate))
         {
-            using var probe = CreatePort(portName, baud);
-            int frameErrors = 0;
-            void OnProbeError(object? s, SerialErrorReceivedEventArgs ea)
-            {
-                if (ea.EventType is SerialError.Frame or SerialError.RXParity or SerialError.Overrun)
-                    Interlocked.Increment(ref frameErrors);
-            }
-
-            try
-            {
-                probe.Open();
-                ApplyControlLines(probe);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                // 串口被其他程序独占占用，任何波特率都无法打开，直接终止探测
-                throw new UnauthorizedAccessException(
-                    $"串口 {portName} 已被其他程序占用，请关闭占用该端口的软件后重试。", ex);
-            }
-            catch (IOException ex)
-            {
-                throw new IOException(
-                    $"串口 {portName} 打开失败，设备可能已拔出或驱动异常：{ex.Message}", ex);
-            }
-
-            probe.ErrorReceived += OnProbeError;
-
-            var data = new List<byte>();
-            var stopwatch = Stopwatch.StartNew();
-            while (stopwatch.ElapsedMilliseconds < ProbeDurationMs)
-            {
-                Thread.Sleep(50);
-
-                int available;
-                try
-                {
-                    available = probe.BytesToRead;
-                }
-                catch (IOException)
-                {
-                    // 监听期间设备失效，按当前无数据处理，继续下一个候选速率
-                    break;
-                }
-
-                if (available <= 0)
-                    continue;
-
-                var buffer = new byte[available];
-                int read;
-                try
-                {
-                    read = probe.Read(buffer, 0, available);
-                }
-                catch (IOException)
-                {
-                    break;
-                }
-
-                data.AddRange(buffer.Take(read));
-            }
-
-            probe.ErrorReceived -= OnProbeError;
+            using var probe = OpenPortAt(portName, baud);
+            var (data, frameErrors) = Sample(probe, ProbeDurationMs);
 
             int score = ScoreData(data, frameErrors);
             if (score > bestScore)
@@ -201,10 +236,9 @@ public sealed class SerialConnection : IDisposable
             if (bestScore >= 85)
                 break;
 
-            // 首选速率一个字节都没收到：设备没在发数据，其余候选同样收不到，
-            // 继续探测只会多出 7 次 Open/Close 的控制线边沿，可能把 BOOT/EN
-            // 拉低使目标板复位进下载（烧录）模式。
-            if (baud == preferredBaudRate && data.Count == 0)
+            // 该速率一个字节都没收到：设备没在发数据，其余候选同样收不到，
+            // 继续探测只会多出 Open/Close 的控制线边沿，可能把目标板打进烧录模式
+            if (data.Count == 0)
                 break;
         }
 
@@ -324,21 +358,18 @@ public sealed class SerialConnection : IDisposable
     /// 写入失败不向外抛，转 Faulted 事件由上层处理。
     /// </summary>
     public void Write(string text)
-    {
-        if (_port is null || !_port.IsOpen)
-            throw new InvalidOperationException($"{_portName} 未连接，无法发送");
-
-        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(text);
-        _port.Write(bytes, 0, bytes.Length);
-    }
+        => WriteBytes(System.Text.Encoding.UTF8.GetBytes(text));
 
     /// <summary>向端口写入原始字节（HEX 帧使用）</summary>
     public void WriteBytes(byte[] bytes)
     {
-        if (_port is null || !_port.IsOpen)
+        // 取本地快照，避免写入途中连接被关闭导致空引用
+        var port = _port;
+        if (port is null || !port.IsOpen)
             throw new InvalidOperationException($"{_portName} 未连接，无法发送");
 
-        _port.Write(bytes, 0, bytes.Length);
+        lock (_writeGate)
+            port.Write(bytes, 0, bytes.Length);
     }
 
     /// <summary>按配置把 DTR/RTS 控制线状态重新落到端口上（默认禁用），忽略驱动层异常</summary>
@@ -347,7 +378,7 @@ public sealed class SerialConnection : IDisposable
         var cfg = AppConfig.Load();
         try
         {
-            port.DtrEnable = cfg.DtrEnable;
+            port.DtrEnable = cfg.DtrEnable || cfg.AutoDtrEnable;
             port.RtsEnable = cfg.RtsEnable;
         }
         catch
@@ -381,7 +412,7 @@ public sealed class SerialConnection : IDisposable
             // 控制线默认关闭（见 AppConfig）：纯 UART 收发不主动驱动 DTR/RTS，
             // 避免开/关串口时的电平边沿把目标板 BOOTSEL/BOOT0/EN 拉低，
             // 导致设备复位采样到下载模式而枚举成 RPI-RP2 烧写盘。
-            DtrEnable = cfg.DtrEnable,
+            DtrEnable = cfg.DtrEnable || cfg.AutoDtrEnable,
             RtsEnable = cfg.RtsEnable
         };
     }

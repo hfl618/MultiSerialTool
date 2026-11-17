@@ -61,6 +61,8 @@
                                        IsChecked="{Binding DtrEnable}"/>
                         <dxe:CheckEdit Content="{loc:Translate 使能 RTS}" Margin="0,2"
                                        IsChecked="{Binding RtsEnable}"/>
+                        <dxe:CheckEdit Content="{loc:Translate 打开端口时自动使能 DTR}" Margin="0,2"
+                                       IsChecked="{Binding AutoDtrEnable}"/>
                         <TextBlock Text="{loc:Translate 控制线提示}" Foreground="#888888"
                                    TextWrapping="Wrap" Margin="0,6,0,0"/>
                     </dxlc:LayoutGroup>
