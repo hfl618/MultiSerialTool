@@ -1,3 +1,5 @@
+using NLog;
+
 namespace MultiSerialTool.Services;
 
 /// <summary>
@@ -8,7 +10,7 @@ public class DebugLogEntry
     /// <summary>产生时间</summary>
     public DateTime Time { get; init; }
 
-    /// <summary>级别</summary>
+    /// <summary>级别（直接复用 NLog 级别模型）</summary>
     public LogLevel Level { get; init; }
 
     /// <summary>来源：模块/类名，如 Serial、Tcp、App</summary>

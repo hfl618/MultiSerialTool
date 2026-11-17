@@ -75,7 +75,7 @@ public class LogService
         LogDirectory = string.IsNullOrWhiteSpace(configured) ? DefaultLogDirectory : configured;
         System.IO.Directory.CreateDirectory(LogDirectory);
 
-        // 初始化 NLog：加载 nlog.config，并把日志目录写入配置变量，供 File 目标使用
+        // 初始化 NLog：代码内编程式构建双通道配置，日志目录直接传入 File 目标
         InitNLog(LogDirectory);
 
         LoadTodayFile();
@@ -208,7 +208,8 @@ public class LogService
         if (!match.Success)
             return false;
 
-        if (!Enum.TryParse<LogLevel>(match.Groups[1].Value, ignoreCase: true, out var level))
+        var level = LogLevel.FromString(match.Groups[1].Value);
+        if (level == LogLevel.Off)
             return false;
 
         string rest = match.Groups[3].Value;
@@ -303,7 +304,7 @@ public class LogService
         var body = entry.Operation.Length == 0
             ? entry.Message
             : $"{entry.Operation}: {entry.Message}";
-        var ev = new LogEventInfo(MapLevel(entry.Level), entry.Source, body)
+        var ev = new LogEventInfo(entry.Level, entry.Source, body)
         {
             Exception = null   // 异常文本已在 Error() 中拼进 Message，避免重复输出堆栈
         };
@@ -312,15 +313,6 @@ public class LogService
         ev.Properties["Stamp"] = entry.Time.ToString("HH:mm:ss.fff");
         logger.Log(ev);
     }
-
-    private static NLog.LogLevel MapLevel(LogLevel level) => level switch
-    {
-        LogLevel.Debug => NLog.LogLevel.Debug,
-        LogLevel.Info => NLog.LogLevel.Info,
-        LogLevel.Warn => NLog.LogLevel.Warn,
-        LogLevel.Error => NLog.LogLevel.Error,
-        _ => NLog.LogLevel.Info
-    };
 
     private void DispatchToUi(DebugLogEntry entry)
         => DispatchToUi(() =>
