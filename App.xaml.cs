@@ -31,9 +31,13 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        // 先记退出日志，再冲刷 NLog 异步队列并关闭后台线程/文件句柄，避免队列尾部日志丢失
+        LogService.Current.Info(Source, "Shutdown", $"程序退出，退出码 {e.ApplicationExitCode}");
+        NLog.LogManager.Flush();
+        NLog.LogManager.Shutdown();
+
         // 统一刷新并关闭所有实时导出文件流，避免缓冲丢失与句柄残留
         RealtimeFileRecorder.Current.CloseAll();
-        LogService.Current.Info(Source, "Shutdown", $"程序退出，退出码 {e.ApplicationExitCode}");
         base.OnExit(e);
     }
 

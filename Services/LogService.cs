@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 using System.Windows;
+using NLog;
 
 namespace MultiSerialTool.Services;
 
@@ -15,9 +16,11 @@ namespace MultiSerialTool.Services;
 ///    - 内存：Entries 集合供 LOG 页面实时绑定，上限 1000 条，超出自动淘汰最旧条目。
 ///    - 文件：%LocalAppData%\MultiSerialTool\Logs\log_yyyyMMdd.txt
 ///      （C:\Users\&lt;用户&gt;\AppData\Local\MultiSerialTool\Logs），按天一个文件；
-///      同一天的多次运行自动追加，
-///      写入即时 Flush，程序崩溃不丢日志；程序启动时自动读回当天文件回填内存。
-///    - 文件带 UTF-8 BOM，中文在记事本/Excel 中直接可读。
+///      同一天的多次运行自动追加。文件输出由 NLog 承担：
+///        * Debug/Info/Warn 走 AsyncWrapper 后台队列（Block 反压，不丢日志）；
+///        * Error 走同步直写通道，崩溃/强杀瞬间致命错误也尽量落盘。
+///      程序启动时自动读回当天文件回填内存。
+///    - 文件为 UTF-8，中文在记事本/Excel 中直接可读。
 ///
 /// 2. 行格式：时间 [级别/来源] 操作: 详情
 ///    示例：21:06:24.437 [INFO/Serial] SendData: 123
@@ -53,8 +56,6 @@ public class LogService
     /// <summary>内存中保留的最大条数，超出后丢弃最旧的</summary>
     private const int MaxEntries = 1000;
 
-    private readonly object _fileLock = new();
-
     /// <summary>当前日志文件目录，可通过 SetLogDirectory 切换</summary>
     public string LogDirectory { get; private set; } = string.Empty;
 
@@ -73,6 +74,10 @@ public class LogService
         var configured = AppConfig.Load().LogDirectory;
         LogDirectory = string.IsNullOrWhiteSpace(configured) ? DefaultLogDirectory : configured;
         System.IO.Directory.CreateDirectory(LogDirectory);
+
+        // 初始化 NLog：加载 nlog.config，并把日志目录写入配置变量，供 File 目标使用
+        InitNLog(LogDirectory);
+
         LoadTodayFile();
     }
 
@@ -103,10 +108,9 @@ public class LogService
             return false;
         }
 
-        lock (_fileLock)
-        {
-            LogDirectory = path;
-        }
+        LogDirectory = path;
+        ApplyNLogDirectory(path);
+
         Entries.Clear();
         LoadTodayFile();
 
@@ -228,32 +232,95 @@ public class LogService
         return true;
     }
 
+    // ===================== NLog 接入层 =====================
+
+    /// <summary>初始化 NLog：编程式创建双通道配置，目录直接传入，避免配置变量未初始化导致路径解析失败。</summary>
+    private static void InitNLog(string logDirectory)
+        => BuildNLogConfig(logDirectory);
+
+    /// <summary>切换日志目录后重建 NLog 配置，使 File 目标指向新目录。</summary>
+    private static void ApplyNLogDirectory(string logDirectory)
+        => BuildNLogConfig(logDirectory);
+
+    /// <summary>
+    /// 编程式构建 NLog 配置：
+    /// Debug/Info/Warn → 异步队列（Block 反压不丢日志）；Error → 同步直写。
+    /// 行格式由事件属性 Stamp 提供时间戳，消息体已在代码层规整，layout 不做格式推断。
+    /// </summary>
+    private static void BuildNLogConfig(string logDirectory)
+    {
+        var fileName = System.IO.Path.Combine(logDirectory, "log_${date:format=yyyyMMdd}.txt");
+        const string Layout = "${event-properties:item=Stamp} [${level:uppercase=true}/${event-properties:item=Source}] ${message}${exception:format=toString}";
+
+        var config = new NLog.Config.LoggingConfiguration();
+
+        // 常规日志：异步后台队列
+        var asyncFile = new NLog.Targets.Wrappers.AsyncTargetWrapper(
+            new NLog.Targets.FileTarget("asyncInnerFile")
+            {
+                FileName = fileName,
+                Layout = Layout,
+                KeepFileOpen = true,
+                ArchiveAboveSize = 104857600,
+                ArchiveNumbering = NLog.Targets.ArchiveNumberingMode.Rolling,
+                MaxArchiveFiles = 10,
+                Encoding = System.Text.Encoding.UTF8,
+                AutoFlush = true
+            })
+        {
+            QueueLimit = 10000,
+            OverflowAction = NLog.Wrappers.AsyncTargetWrapperOverflowAction.Block,
+            BatchSize = 200,
+            TimeToSleepBetweenBatches = 0
+        };
+
+        // Error：同步直写，不经异步队列
+        var errorFile = new NLog.Targets.FileTarget("errorFile")
+        {
+            FileName = fileName,
+            Layout = Layout,
+            KeepFileOpen = true,
+            Encoding = System.Text.Encoding.UTF8,
+            AutoFlush = true
+        };
+
+        config.AddTarget("asyncFile", asyncFile);
+        config.AddTarget("errorFile", errorFile);
+
+        config.AddRule(NLog.LogLevel.Error, NLog.LogLevel.Error, "errorFile");
+        config.AddRuleForOneLevel(NLog.LogLevel.Debug, "asyncFile");
+        config.AddRuleForOneLevel(NLog.LogLevel.Info, "asyncFile");
+        config.AddRuleForOneLevel(NLog.LogLevel.Warn, "asyncFile");
+
+        LogManager.Configuration = config;
+    }
+
+    /// <summary>把一条日志交给 NLog 落盘；级别映射到 NLog，消息体在代码层规整成
+    /// “Operation: Message”（操作名为空时只留 Message），与原自研格式完全一致。</summary>
     private void WriteToFile(DebugLogEntry entry)
     {
+        var logger = LogManager.GetLogger(entry.Source);
         var body = entry.Operation.Length == 0
             ? entry.Message
             : $"{entry.Operation}: {entry.Message}";
-        var line = $"{entry.Time:HH:mm:ss.fff} [{entry.LevelText}/{entry.Source}] {body}{Environment.NewLine}";
-
-        lock (_fileLock)
+        var ev = new LogEventInfo(MapLevel(entry.Level), entry.Source, body)
         {
-            var path = LogFile;
-            bool newFile = !System.IO.File.Exists(path);
-            using var stream = new System.IO.FileStream(
-                path, System.IO.FileMode.Append, System.IO.FileAccess.Write, System.IO.FileShare.Read);
-            // 新文件先写 UTF-8 BOM，保证记事本/Excel 等工具正确识别中文
-            if (newFile)
-            {
-                stream.WriteByte(0xEF);
-                stream.WriteByte(0xBB);
-                stream.WriteByte(0xBF);
-            }
-            using var writer = new System.IO.StreamWriter(
-                stream, new System.Text.UTF8Encoding(false));
-            writer.Write(line);
-            writer.Flush();   // 实时落盘，程序异常退出也不丢日志
-        }
+            Exception = null   // 异常文本已在 Error() 中拼进 Message，避免重复输出堆栈
+        };
+        ev.Properties["Source"] = entry.Source;
+        // 时间戳在代码层固定为 HH:mm:ss.fff（3 位毫秒），不依赖 NLog 时间渲染器的格式差异
+        ev.Properties["Stamp"] = entry.Time.ToString("HH:mm:ss.fff");
+        logger.Log(ev);
     }
+
+    private static NLog.LogLevel MapLevel(LogLevel level) => level switch
+    {
+        LogLevel.Debug => NLog.LogLevel.Debug,
+        LogLevel.Info => NLog.LogLevel.Info,
+        LogLevel.Warn => NLog.LogLevel.Warn,
+        LogLevel.Error => NLog.LogLevel.Error,
+        _ => NLog.LogLevel.Info
+    };
 
     private void DispatchToUi(DebugLogEntry entry)
         => DispatchToUi(() =>
