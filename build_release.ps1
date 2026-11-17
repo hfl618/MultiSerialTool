@@ -235,6 +235,13 @@ elseif ($KeepLast -gt 0) {
     }
 }
 
+# publish/app 只是 ZIP 与安装包的中间产物（ZIP 与 ISCC 编译都已完成），
+# 上传或清理模式下再保留一份 108MB 的散文件没有意义，直接删除
+if (($Upload -or $KeepLast -gt 0) -and (Test-Path -LiteralPath $appDir)) {
+    Remove-Item -LiteralPath $appDir -Recurse -Force
+    Write-Host "已删除中间发布目录: publish\app" -ForegroundColor DarkGray
+}
+
 # ---------- 8. 汇总 ----------
 Write-Host "`n=== 发布完成 ===" -ForegroundColor Green
 Get-Item -LiteralPath $zipPath, $manifestPath -ErrorAction SilentlyContinue |
