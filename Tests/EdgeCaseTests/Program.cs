@@ -169,6 +169,60 @@ Check("Chart-占位符 {%.2f}", phRegex.IsMatch("{%.2f}"), "{%2f} 命中");
 Check("Chart-占位符 {自定义:%.2f}", phRegex.IsMatch("{电压:%.2f}"), "{电压:%.2f} 命中");
 Check("Chart-占位符 {%d}", phRegex.IsMatch("{%d}"), "{%d} 命中");
 
+// 7b. 同一组内多行数据不能串值：LED 的 current/power 必须取自己那一行
+var parseBodyMethod = typeof(MultiSerialTool.Views.ChartView)
+    .GetMethod("ParseRuleBody", BindingFlags.NonPublic | BindingFlags.Static)!;
+var matchValuesMethod = typeof(MultiSerialTool.Views.ChartView)
+    .GetMethod("MatchValues", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+List<(string Column, Regex Regex)> BuildFields(string body)
+{
+    var list = new List<(string, Regex)>();
+    foreach (var r in (System.Collections.IEnumerable)parseBodyMethod.Invoke(null, new object[] { body })!)
+    {
+        var t = r.GetType();
+        list.Add(((string)t.GetProperty("Legend")!.GetValue(r)!,
+                  (Regex)t.GetProperty("ValueRegex")!.GetValue(r)!));
+    }
+    return list;
+}
+
+Dictionary<string, double> MatchFields(List<(string Column, Regex Regex)> fields, string text)
+{
+    var map = new Dictionary<string, double>();
+    var anchor = fields.Count > 0 ? fields[0].Regex : null;
+    var result = (System.Collections.IEnumerable)matchValuesMethod
+        .Invoke(null, new object?[] { anchor, fields, text })!;
+    foreach (var item in result)
+    {
+        var t = item.GetType();
+        map[(string)t.GetField("Item1")!.GetValue(item)!] =
+            (double)t.GetField("Item2")!.GetValue(item)!;
+    }
+    return map;
+}
+
+const string solarRule = "Solar voltage: {光伏电压:%.2f}/current: {光伏电流:%.2f}/power: {%.2f}\n";
+const string ledRule = "LED voltage: {LED电压:%.2f}/current: {LED电流:%.2f}/power: {%.2f}\n";
+const string twoLineGroup =
+    "Solar voltage: 12.50/current: 3.20/power: 40.00\nLED voltage: 11.80/current: 0.50/power: 5.90";
+
+var solarValues = MatchFields(BuildFields(solarRule), twoLineGroup);
+var ledValues = MatchFields(BuildFields(ledRule), twoLineGroup);
+
+Check("Chart-光伏电流取本行",
+    solarValues.TryGetValue("光伏电流", out var sv) && Math.Abs(sv - 3.20) < 1e-9,
+    $"光伏电流={sv}");
+Check("Chart-光伏功率取本行",
+    solarValues.TryGetValue("power", out var sp) && Math.Abs(sp - 40.00) < 1e-9,
+    $"power={sp}");
+Check("Chart-LED电流取本行",
+    ledValues.TryGetValue("LED电流", out var lv) && Math.Abs(lv - 0.50) < 1e-9,
+    $"LED电流={lv}");
+Check("Chart-LED功率取本行",
+    ledValues.TryGetValue("power", out var lp) && Math.Abs(lp - 5.90) < 1e-9,
+    $"LED power={lp}");
+
 // ============================================================
 // 8. AppInfo —— 版本/命名
 // ============================================================

@@ -679,7 +679,8 @@ namespace MultiSerialTool.Views
             };
         }
 
-        // 列名含点号（tab.字段）会被默认绑定当成属性导航导致空白，改用索引器路径 [列名]
+        // 列名含点号（tab.字段）会被默认绑定当成属性导航导致空白，改用索引器路径 [列名]；
+        // 索引器路径无法参与排序（DataRowView 上不存在该属性），关闭排序避免点击表头抛异常
         private void RecordGrid_AutoGeneratingColumn(
             object sender, System.Windows.Controls.DataGridAutoGeneratingColumnEventArgs e)
         {
@@ -690,6 +691,8 @@ namespace MultiSerialTool.Views
                     Mode = System.Windows.Data.BindingMode.OneWay
                 };
             }
+
+            e.Column.CanUserSort = false;
         }
 
         /// <summary>
@@ -715,26 +718,23 @@ namespace MultiSerialTool.Views
 
             foreach (var tab in _tabs)
             {
-                if (tab.AnchorRegex is null || !tab.AnchorRegex.IsMatch(group.CombinedText))
+                if (tab.AnchorRegex is null)
                 {
                     continue;
                 }
 
-                foreach (var f in tab.Fields)
-                {
-                    var m = f.ValueRegex.Match(group.CombinedText);
-                    if (!m.Success)
-                    {
-                        continue;
-                    }
+                var fields = tab.Fields
+                    .Select(f => (Column: f.Column, Regex: f.ValueRegex))
+                    .ToList();
 
-                    var v = double.Parse(m.Groups[1].Value,
-                        System.Globalization.CultureInfo.InvariantCulture);
-                    f.Series.Points.Add(new SeriesPoint(group.Time, v));
+                foreach (var (column, value) in MatchValues(tab.AnchorRegex, fields, group.CombinedText))
+                {
+                    tab.Fields.First(f => f.Column == column)
+                        .Series.Points.Add(new SeriesPoint(group.Time, value));
 
                     row ??= _recordTable.NewRow();
                     row["时间"] = group.Time;
-                    row[f.Column] = v;
+                    row[column] = value;
                 }
             }
 
@@ -743,6 +743,48 @@ namespace MultiSerialTool.Views
             {
                 _recordTable.Rows.Add(row);
             }
+        }
+
+        /// <summary>
+        /// 在组文本里为页签取字段值：逐行查找锚点，字段只在锚点所在行、锚点之后匹配。
+        /// 一个上报组常含多行（光伏/电池/LED/信号），整段匹配会让后一页签抓到前一页签的
+        /// 同名字段（如 current/power），表现为各页数值完全一样。
+        /// </summary>
+        internal static List<(string Column, double Value)> MatchValues(
+            Regex? anchor,
+            IReadOnlyList<(string Column, Regex Regex)> fields,
+            string combinedText)
+        {
+            var result = new List<(string, double)>();
+            if (anchor is null || fields.Count == 0)
+            {
+                return result;
+            }
+
+            foreach (var line in combinedText.Split('\n'))
+            {
+                var anchorMatch = anchor.Match(line);
+                if (!anchorMatch.Success)
+                {
+                    continue;
+                }
+
+                foreach (var (column, regex) in fields)
+                {
+                    var m = regex.Match(line, anchorMatch.Index);
+                    if (m.Success && double.TryParse(m.Groups[1].Value,
+                            System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out var v))
+                    {
+                        result.Add((column, v));
+                    }
+                }
+
+                // 每个页签在一个组里只取第一条命中锚点的行
+                break;
+            }
+
+            return result;
         }
 
         // 字段名归一：小写、去首尾空白、内部连续空白压成一个
