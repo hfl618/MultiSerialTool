@@ -626,6 +626,12 @@ git push origin v1.0.6         # A. 云端构建：Actions 自动构建并挂 Re
 .\build_release.ps1 -Upload    # B. 本机构建：上传 Release 后自动删除本地 zip/安装包
 ```
 
+> **v1.0.5 实测结论（2026-11-17）**
+> - 云端路径已验证跑通：`push tag` → `checkout` → `publish` → `Inno Setup` → `manifest` → `release`，8 个步骤全绿，总耗时约 2 分钟，产物自动挂到 Release。
+> - DevExpress 24.2.8 在 `windows-latest` 上可从 nuget.org 正常还原，**不需要**上传本地离线包（`D:\DevExpress 24.2\Components\Offline Packages` 仅本机使用）。
+> - 若首次运行在 `Publish` 步骤失败，先重跑一次：实测遇到过 nuget 瞬时失败，重跑即通过。
+> - 本机路径在没有 `gh` 时也可用 Git 凭据直连 API 上传，但要求机器能访问 `github.com`（本机 DNS 污染时需走代理）。
+
 ### 16.3 产物去哪里
 
 | 载体 | 放什么 | 说明 |
