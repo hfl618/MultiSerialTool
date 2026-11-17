@@ -61,13 +61,6 @@
     </None>
   </ItemGroup>
 
-  <!-- NLog 配置：复制到输出目录，可外部调整队列/归档参数，无需重新编译 -->
-  <ItemGroup>
-    <None Include="nlog.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
   <!--
     自动版本号：版本号唯一权威来源是 Git tag（形如 v1.0.5）。
     日常 commit 不再改变版本号，只有新增 tag 才产生新版本；无 tag 时回退为 主版本.次版本.提交数。

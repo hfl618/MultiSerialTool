@@ -24,6 +24,7 @@
     <Compile Remove="EdgeCaseTests\**\*.cs" />
     <Compile Remove="EngineTests\**\*.cs" />
     <Compile Remove="ServiceTests\**\*.cs" />
+    <Compile Remove="DiagLog\**\*.cs" />
     <Compile Remove="bin\**\*.cs" />
     <Compile Remove="obj\**\*.cs" />
   </ItemGroup>

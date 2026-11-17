@@ -262,14 +262,14 @@ public class LogService
                 Layout = Layout,
                 KeepFileOpen = true,
                 ArchiveAboveSize = 104857600,
-                ArchiveNumbering = NLog.Targets.ArchiveNumberingMode.Rolling,
+                ArchiveNumbering = "Rolling",
                 MaxArchiveFiles = 10,
                 Encoding = System.Text.Encoding.UTF8,
                 AutoFlush = true
             })
         {
             QueueLimit = 10000,
-            OverflowAction = NLog.Wrappers.AsyncTargetWrapperOverflowAction.Block,
+            OverflowAction = NLog.Targets.Wrappers.AsyncTargetWrapperOverflowAction.Block,
             BatchSize = 200,
             TimeToSleepBetweenBatches = 0
         };

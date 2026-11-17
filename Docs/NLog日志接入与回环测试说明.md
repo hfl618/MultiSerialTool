@@ -1,7 +1,7 @@
 # NLog 日志接入与回环测试说明
 
 > 适用程序：MultiSerialTool（WPF / .NET 9，`net9.0-windows`）
-> 关联文件：`Services/LogService.cs`、`Services/DebugLogEntry.cs`、`Services/LogLevel.cs`、`nlog.config`、`App.xaml.cs`
+> 关联文件：`Services/LogService.cs`、`Services/DebugLogEntry.cs`、`Services/LogLevel.cs`、`App.xaml.cs`
 > 目的：固定"门面 API 不变、文件输出切到 NLog、双通道落盘"的口径，并给出可复算的收发样例、预期解析结果与回环测试步骤。
 
 ---
@@ -44,7 +44,10 @@ LogService（门面单例）
 
 ---
 
-## 2. 配置说明（`nlog.config`）
+## 2. 配置说明（代码内编程式构建）
+
+> NLog 配置由 `LogService.BuildNLogConfig` 在代码内编程式创建，不依赖外部 `nlog.config` 文件；
+> 这样日志目录可直接传入，避免配置变量未初始化导致 File 目标路径解析失败，测试宿主（无配置文件）也能正常初始化。
 
 ### 2.1 关键参数
 
@@ -72,8 +75,8 @@ HH:mm:ss.fff [LEVEL/Source] Operation: Message
 
 ### 2.3 动态日志目录
 
-- 日志目录不写死在配置里，由 `LogService` 启动时从 `AppConfig.LogDirectory`（缺省 `%LocalAppData%\MultiSerialTool\Logs`）读取，写入 NLog 变量 `${var:logDirectory}`。
-- 切换目录（`SetLogDirectory`）成功后更新该变量并 `LogManager.ReconfigExistingLoggers()`，File 目标随即指向新目录。
+- 日志目录不写死在配置里，由 `LogService` 启动时从 `AppConfig.LogDirectory`（缺省 `%LocalAppData%\MultiSerialTool\Logs`）读取，直接传给 `BuildNLogConfig` 构造 File 目标路径。
+- 切换目录（`SetLogDirectory`）成功后以新目录重建整份 NLog 配置并赋给 `LogManager.Configuration`，File 目标随即指向新目录。
 
 ---
 
@@ -166,7 +169,7 @@ dotnet build -c Debug -v minimal
 预期：**0 错误**。输出目录 `bin\Debug\net9.0-windows\` 应包含：
 
 - `NLog.dll`
-- `nlog.config`（`PreserveNewest` 复制到输出目录）
+- `NLog.dll`（NuGet 引用，随主程序集输出）
 
 ### 4.2 基础落盘与格式核对
 
@@ -214,7 +217,7 @@ python Tests\device_simulator.py COM8 9600
 
 ### 4.7 归档验证
 
-1. 临时把 `nlog.config` 的 `archiveAboveSize` 调小（如 `102400`，100KB）。
+1. 临时把 `LogService.BuildNLogConfig` 里的 `ArchiveAboveSize` 调小（如 `102400`，100KB）。
 2. 持续写日志使单文件超限。
 3. 确认生成滚动归档文件，旧文件不被覆盖；验证后改回 100MB。
 
