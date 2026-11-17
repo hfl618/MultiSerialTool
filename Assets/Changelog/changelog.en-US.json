@@ -1,5 +1,18 @@
 [
   {
+    "version": "1.0.5",
+    "date": "2026-11-17",
+    "notes": [
+      "The HEX switch now also controls the send format: when checked, send-box content is parsed as hex bytes (41 42, 4142, 0x41,0x42 all accepted); malformed input shows a message, sends nothing and keeps the draft",
+      "Fixed chart parsing: fields from different lines of one report group (solar/battery/LED/RSSI) leaked into each other, so LED power duplicated the solar panel values",
+      "Fixed an exception thrown when sorting the chart record table by a column header",
+      "Serial writes and port-info queries moved off the UI thread, so a timing-out port no longer freezes the window periodically",
+      "Connecting no longer closes and reopens the port for baud-rate probing, which left some USB serial devices silent for a long time after a reopen; the probe window is shortened from 600 ms to 350 ms and ends early once enough data arrives",
+      "Added an 'assert DTR when opening the port' setting (on by default), fixing devices that never report data unless DTR is raised",
+      "Global debug log backend switched to NLog: regular logs go through an async queue that back-pressures instead of dropping events, error logs are written synchronously; log UI, level filter and directory switch stay unchanged"
+    ]
+  },
+  {
     "version": "1.0.4",
     "date": "2026-11-08",
     "notes": [
