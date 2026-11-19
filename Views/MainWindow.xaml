@@ -16,6 +16,7 @@
         x:Class="MultiSerialTool.Views.MainWindow"
         mc:Ignorable="d"
         Title="MultiSerialTool" Height="450" Width="800"
+        MinWidth="800" MinHeight="450"
         Background="#F5F5F5" Foreground="#222222">
 
     <Window.Resources>

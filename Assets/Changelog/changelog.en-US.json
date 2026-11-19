@@ -4,7 +4,9 @@
     "date": "2026-11-19",
     "notes": [
       "Fixed the Auto-send checkbox in the command list not being manually uncheckable: its state now stays in sync with the command rule and is saved to the current device type's rule override right after toggling",
-      "The side-pane + button now opens a custom-command dialog for name, send frame, format (HEX/ASCII) and auto-send; the command is added to the list and saved to the current rule"
+      "The side-pane + button now opens a custom-command dialog for name, send frame, format (HEX/ASCII) and auto-send; the command is added to the list and saved to the current rule",
+      "Rule page is now responsive: file-rule fields wrap to the window width, the whole page scrolls vertically, and table columns stretch or shrink with the window, so nothing gets clipped when the window is small",
+      "Main window now has a fixed minimum size of 800x450 so the UI cannot be shrunk into an unusable layout"
     ]
   },
   {

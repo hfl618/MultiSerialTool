@@ -290,7 +290,8 @@
             <views:DevicePanelView/>
         </dx:DXTabItem>
         <dx:DXTabItem Header="{loc:Translate 规则}">
-            <local:RuleEditorView/>
+            <!-- 规则页是独立 VM：DataContext 由这里显式下发，页面内绑定才有源 -->
+            <local:RuleEditorView DataContext="{Binding RuleEditor}"/>
         </dx:DXTabItem>
         <dx:DXTabItem Header="{loc:Translate 图表}">
             <views:ChartView/>

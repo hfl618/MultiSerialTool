@@ -19,11 +19,17 @@ public class RuleEditorViewModel : ViewModelBase
     /// <summary>自动保存（自动应答规则）防抖间隔（毫秒）</summary>
     private const int SaveDebounceMs = 500;
 
+    /// <summary>文件规则防抖保存间隔（毫秒）</summary>
+    private const int FileRuleSaveDebounceMs = 300;
+
     /// <summary>工作区 UI 状态（记录上次选中的设备类型）</summary>
     private readonly WorkspaceState _workspaceState;
 
     /// <summary>防抖保存定时器：连续编辑合并为一次写盘</summary>
     private readonly DispatcherTimer _saveTimer;
+
+    /// <summary>文件规则防抖定时器：路径/文件名逐字输入时合并为一次写盘</summary>
+    private readonly DispatcherTimer _fileRuleTimer;
 
     /// <summary>设备类型下拉选项（规则文件名，不含扩展名）</summary>
     public ObservableCollection<string> DeviceTypeOptions { get; } = new();
@@ -111,6 +117,9 @@ public class RuleEditorViewModel : ViewModelBase
     /// <summary>当前是否选中了设备（未选中时文件规则区只读）</summary>
     public bool HasDevice => _currentDevice is not null;
 
+    /// <summary>未选中设备（用于显示操作提示）</summary>
+    public bool HasNoDevice => _currentDevice is null;
+
     private SerialDeviceInfo? _currentDevice;
 
     private FileExportRule? _fileRule;
@@ -140,7 +149,7 @@ public class RuleEditorViewModel : ViewModelBase
             if (SetProperty(ref _fileDirectory, value) && _fileRule is not null)
             {
                 _fileRule.Directory = value;
-                SaveFileRule();
+                ScheduleFileRuleSave();
                 RaisePropertyChanged(nameof(PreviewFilePath));
             }
         }
@@ -156,7 +165,7 @@ public class RuleEditorViewModel : ViewModelBase
             if (SetProperty(ref _customFileName, value) && _fileRule is not null)
             {
                 _fileRule.FileName = value;
-                SaveFileRule();
+                ScheduleFileRuleSave();
                 RaisePropertyChanged(nameof(PreviewFilePath));
             }
         }
@@ -174,8 +183,7 @@ public class RuleEditorViewModel : ViewModelBase
                 _fileRule.Format = value;
                 SaveFileRule();
                 RaisePropertyChanged(nameof(PreviewFilePath));
-            }
-        }
+            }        }
     }
 
     /// <summary>当前配置下的完整文件路径预览（占位符按当前时间展开）</summary>
@@ -226,6 +234,9 @@ public class RuleEditorViewModel : ViewModelBase
         _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(SaveDebounceMs) };
         _saveTimer.Tick += OnSaveTimerTick;
 
+        _fileRuleTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(FileRuleSaveDebounceMs) };
+        _fileRuleTimer.Tick += OnFileRuleTimerTick;
+
         ScanRuleFiles();
 
         CurrentDeviceService.Current.DeviceChanged += OnCurrentDeviceChanged;
@@ -238,11 +249,17 @@ public class RuleEditorViewModel : ViewModelBase
     /// <summary>加载指定设备的文件规则到编辑属性</summary>
     private void LoadDevice(SerialDeviceInfo? device)
     {
+        // 切换设备前先落盘上一台设备的待保存编辑，避免输入后立刻切换丢失
+        _fileRuleTimer?.Stop();
+        SaveFileRule();
+
         _currentDevice = device;
         if (device is null)
         {
             _fileRule = null;
             RaisePropertyChanged(nameof(HasDevice));
+            RaisePropertyChanged(nameof(HasNoDevice));
+            RaisePropertyChanged(nameof(PreviewFilePath));
             BrowseFolderCommand.RaiseCanExecuteChanged();
             return;
         }
@@ -256,6 +273,7 @@ public class RuleEditorViewModel : ViewModelBase
         _fileFormat = _fileRule.Format;
 
         RaisePropertyChanged(nameof(HasDevice));
+        RaisePropertyChanged(nameof(HasNoDevice));
         RaisePropertyChanged(nameof(RealtimeEnabled));
         RaisePropertyChanged(nameof(FileDirectory));
         RaisePropertyChanged(nameof(CustomFileName));
@@ -271,6 +289,19 @@ public class RuleEditorViewModel : ViewModelBase
             return;
 
         FileRuleStore.Save(DeviceKeyProvider.GetKey(_currentDevice), _fileRule);
+    }
+
+    /// <summary>调度一次文件规则防抖保存（逐字输入时避免每键写盘）</summary>
+    private void ScheduleFileRuleSave()
+    {
+        _fileRuleTimer.Stop();
+        _fileRuleTimer.Start();
+    }
+
+    private void OnFileRuleTimerTick(object? sender, EventArgs e)
+    {
+        _fileRuleTimer.Stop();
+        SaveFileRule();
     }
 
     /// <summary>打开系统文件夹选择对话框并回填导出目录</summary>

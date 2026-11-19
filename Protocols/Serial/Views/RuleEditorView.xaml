@@ -9,8 +9,15 @@
              xmlns:local="clr-namespace:MultiSerialTool.Protocols.Serial"
              xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
              mc:Ignorable="d"
-             d:DesignHeight="560" d:DesignWidth="820"
-             DataContext="{Binding RuleEditor, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=local:SerialWorkspaceView}}">
+             d:DesignHeight="560" d:DesignWidth="820">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <!-- 窄窗口下整页可纵向滚动，横向由控件自身收缩/滚动，避免内容被裁掉 -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Focusable="False">
     <dxlc:LayoutControl Orientation="Vertical" ItemSpace="10" Margin="8">
 
         <!-- ========== 分组1：文件规则（每设备独立，跟随当前选中串口） ========== -->
@@ -18,44 +25,64 @@
                           View="GroupBox" Orientation="Vertical"
                           IsEnabled="{Binding HasDevice}">
 
-            <!-- 实时写入 -->
-            <dxlc:LayoutItem Label="{x:Null}" HorizontalAlignment="Stretch">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+            <!-- 标签在上、输入在下；按可用宽度自动折行，窄窗口不裁切 -->
+            <dxlc:LayoutItem Label="{x:Null}">
+                <WrapPanel Margin="0,2,0,0">
+                    <StackPanel Width="140" Margin="0,0,12,10">
+                        <TextBlock Text="{loc:Translate 启用实时写入}"
+                                   Foreground="#666666" FontSize="11" Margin="0,0,0,3"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <dxe:CheckEdit VerticalAlignment="Center"
+                                       HorizontalAlignment="Left"
+                                       IsChecked="{Binding RealtimeEnabled}"/>
+                    </StackPanel>
 
-                    <dxe:CheckEdit Grid.Column="0" Margin="0,0,4,0"
-                                   VerticalAlignment="Center"
-                                   IsChecked="{Binding RealtimeEnabled}"/>
+                    <StackPanel Width="220" Margin="0,0,12,10">
+                        <TextBlock Text="{loc:Translate 导出路径}"
+                                   Foreground="#666666" FontSize="11" Margin="0,0,0,3"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <dxe:TextEdit Grid.Column="0" Margin="0,0,4,0"
+                                          VerticalAlignment="Center"
+                                          Text="{Binding FileDirectory}"/>
+                            <dx:SimpleButton Grid.Column="1"
+                                             Width="28" Height="28"
+                                             VerticalAlignment="Center"
+                                             Glyph="{dx:SvgImageSource Uri='/Assets/Icons/file-addition-one.svg'}"
+                                             ToolTip="{loc:Translate 浏览}"
+                                             Command="{Binding BrowseFolderCommand}"/>
+                        </Grid>
+                    </StackPanel>
 
-                    <dxe:TextEdit Grid.Column="1" Margin="0,0,4,0"
-                                  VerticalAlignment="Center"
-                                  ToolTip="{loc:Translate 导出路径}"
-                                  Text="{Binding FileDirectory, UpdateSourceTrigger=PropertyChanged}"/>
+                    <StackPanel Width="160" Margin="0,0,12,10">
+                        <TextBlock Text="{loc:Translate 自定义名字}"
+                                   Foreground="#666666" FontSize="11" Margin="0,0,0,3"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <dxe:TextEdit VerticalAlignment="Center"
+                                      Text="{Binding CustomFileName, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
 
-                    <dx:SimpleButton Grid.Column="2" Margin="0,0,4,0"
-                                     Width="28" Height="28"
-                                     VerticalAlignment="Center"
-                                     Glyph="{dx:SvgImageSource Uri='/Assets/Icons/file-addition-one.svg'}"
-                                     ToolTip="{loc:Translate 浏览}"
-                                     Command="{Binding BrowseFolderCommand}"/>
+                    <StackPanel Width="120" Margin="0,0,0,10">
+                        <TextBlock Text="{loc:Translate 导出类型}"
+                                   Foreground="#666666" FontSize="11" Margin="0,0,0,3"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <dxe:ComboBoxEdit VerticalAlignment="Center"
+                                          HorizontalAlignment="Stretch"
+                                          ItemsSource="{Binding FormatOptions}"
+                                          SelectedItem="{Binding FileFormat, Mode=TwoWay}"
+                                          IsTextEditable="False"/>
+                    </StackPanel>
+                </WrapPanel>
+            </dxlc:LayoutItem>
 
-                    <dxe:TextEdit Grid.Column="3" Margin="0,0,4,0"
-                                  VerticalAlignment="Center"
-                                  ToolTip="{loc:Translate 自定义名字}"
-                                  Text="{Binding CustomFileName, UpdateSourceTrigger=PropertyChanged}"/>
-
-                    <dxe:ComboBoxEdit Grid.Column="4" Width="96"
-                                      VerticalAlignment="Center"
-                                      ItemsSource="{Binding FormatOptions}"
-                                      SelectedItem="{Binding FileFormat}"
-                                      IsTextEditable="False"/>
-                </Grid>
+            <!-- 文件名预览：按当前目录、名字与类型展开占位符 -->
+            <dxlc:LayoutItem Label="{loc:Translate 路径预览}">
+                <dxe:TextEdit Text="{Binding PreviewFilePath, Mode=OneWay}"
+                              IsReadOnly="True"/>
             </dxlc:LayoutItem>
 
             <!-- 占位符提示 -->
@@ -66,13 +93,18 @@
 
         </dxlc:LayoutGroup>
 
+        <!-- 未选中设备时整块不可编辑，就地说明原因 -->
+        <TextBlock Text="{loc:Translate 未选择设备}"
+                   Foreground="#E06C00" FontSize="12" Margin="4,0,0,0"
+                   Visibility="{Binding HasNoDevice, Converter={StaticResource BoolToVis}}"/>
+
         <!-- ========== 分组2：自动应答规则 ========== -->
         <dxlc:LayoutGroup Header="{loc:Translate 自动应答规则}"
                           View="GroupBox" Orientation="Vertical">
 
             <!-- 第一行：按钮行 -->
             <dxlc:LayoutItem Label="{x:Null}">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <dx:SimpleButton Height="28" Width="28" Margin="0,0,8,0"
                                      Glyph="{dx:SvgImageSource Uri='/Assets/Icons/add-one.svg'}"
                                      ToolTip="{loc:Translate 新增}"
@@ -93,7 +125,7 @@
                                      Glyph="{dx:SvgImageSource Uri='/Assets/Icons/save.svg'}"
                                      ToolTip="{loc:Translate 保存配置}"
                                      Command="{Binding SaveCommand}"/>
-                </StackPanel>
+                </WrapPanel>
             </dxlc:LayoutItem>
 
             <!-- 第二行：自动应答规则表格 -->
@@ -105,7 +137,7 @@
                           CanUserDeleteRows="False"
                           CanUserResizeColumns="True"
                           SelectionMode="Single"
-                          MinHeight="180"
+                          MinHeight="140" MaxHeight="420"
                           CellEditEnding="AutoReplyGrid_CellEditEnding"
                           HorizontalScrollBarVisibility="Auto"
                           VerticalScrollBarVisibility="Auto"
@@ -133,10 +165,10 @@
                                             Width="60" MinWidth="50"/>
                         <DataGridTextColumn Header="{loc:Translate 命令}"
                                             Binding="{Binding Command, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="180" MinWidth="120"/>
+                                            Width="1.5*" MinWidth="100"/>
                         <DataGridTextColumn Header="{loc:Translate 预期}"
                                             Binding="{Binding Expected, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="160" MinWidth="100"/>
+                                            Width="1.2*" MinWidth="80"/>
 
                         <!-- 解析方式：下拉选择 exact/mask/regex，存储值不变，显示本地化文本 -->
                         <DataGridTemplateColumn Header="{loc:Translate 解析方式}"
@@ -216,7 +248,7 @@
 
                         <DataGridTextColumn Header="{loc:Translate 实际回复}"
                                             Binding="{Binding ActualReply, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="*" MinWidth="140"/>
+                                            Width="1.5*" MinWidth="100"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </dxlc:LayoutItem>
@@ -224,4 +256,5 @@
         </dxlc:LayoutGroup>
 
     </dxlc:LayoutControl>
+    </ScrollViewer>
 </UserControl>
