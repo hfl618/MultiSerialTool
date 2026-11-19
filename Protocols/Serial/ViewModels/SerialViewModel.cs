@@ -801,6 +801,10 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
 
             foreach (string port in SerialPort.GetPortNames())
                 Devices.Add(CreateDevice(port, descriptors.GetValueOrDefault(port)));
+
+            // 默认选中首行：规则页的文件规则跟随选中设备，未选中时整块不可编辑
+            if (_selectedDevice is null && Devices.Count > 0)
+                SelectedDevice = Devices[0];
         }
         catch (Exception ex)
         {
@@ -864,8 +868,8 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
                 addedDevices.Add(device);
             }
 
-            // 选中设备已消失：改选剩余首行，没有则清空，避免工作区悬空指向已移除设备
-            if (selectedRemoved)
+            // 选中设备已消失或尚未选中：改选剩余首行，没有则清空，避免工作区悬空指向已移除设备
+            if (selectedRemoved || _selectedDevice is null)
                 SelectedDevice = Devices.FirstOrDefault();
 
             // 图表数据源设备被拔出：回退到剩余首行，保证图表仍有有效数据源
