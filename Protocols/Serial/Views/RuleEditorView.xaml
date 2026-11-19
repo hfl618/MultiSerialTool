@@ -12,10 +12,12 @@
              d:DesignHeight="560" d:DesignWidth="820">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:ClampWidthConverter x:Key="ClampWidth"/>
     </UserControl.Resources>
 
     <!-- 窄窗口下整页纵向滚动；内容仍超出时横向滚动，避免控件被裁切 -->
-    <ScrollViewer VerticalScrollBarVisibility="Auto"
+    <ScrollViewer x:Name="PageRoot"
+                  VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Auto"
                   Focusable="False">
     <dxlc:LayoutControl Orientation="Vertical" ItemSpace="10" Margin="8">
@@ -102,7 +104,10 @@
 
             <!-- 占位符提示 -->
             <dxlc:LayoutItem Label="{x:Null}">
+                <!-- 宽度钳制到视口：LayoutControl 按不受限宽度测量文本，不钳制会撑宽整页 -->
                 <TextBlock Text="{loc:Translate 文件名占位符提示}"
+                           MaxWidth="{Binding ViewportWidth, ElementName=PageRoot,
+                                             Converter={StaticResource ClampWidth}, ConverterParameter=96}"
                            Foreground="#888888" FontSize="11" TextWrapping="Wrap"/>
             </dxlc:LayoutItem>
 
@@ -147,6 +152,8 @@
             <dxlc:LayoutItem Label="{x:Null}">
                 <DataGrid ItemsSource="{Binding AutoReplyRules}"
                           SelectedItem="{Binding SelectedAutoReply}"
+                          MaxWidth="{Binding ViewportWidth, ElementName=PageRoot,
+                                            Converter={StaticResource ClampWidth}, ConverterParameter=64}"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
                           CanUserDeleteRows="False"
