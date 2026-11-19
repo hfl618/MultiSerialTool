@@ -2,12 +2,12 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/1006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
         xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
         mc:Ignorable="d"
         Title="{loc:Translate 查找}"
-        Width="380" SizeToContent="Height"
+        Width="430" SizeToContent="Height"
         Topmost="True"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
@@ -19,17 +19,24 @@
 
     <StackPanel Margin="10,8">
 
-        <!-- 第一行：关键字输入 -->
-        <StackPanel Orientation="Horizontal">
-            <TextBox x:Name="KeywordBox"
-                     Width="250" Height="28"
+        <!-- 第一行：关键字输入 + 操作按钮（Grid 自适应，避免按钮被挤出可视区） -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBox Grid.Column="0" x:Name="KeywordBox"
+                     Height="28"
                      VerticalContentAlignment="Center"
                      FontSize="13"
                      Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}"
                      PreviewKeyDown="KeywordBox_PreviewKeyDown"/>
 
             <!-- 上一个：up-square.svg -->
-            <dx:SimpleButton x:Name="BtnPrevious" Margin="6,0,0,0"
+            <dx:SimpleButton Grid.Column="1" x:Name="BtnPrevious" Margin="6,0,0,0"
                              Width="30" Height="28"
                              ToolTip="{loc:Translate 上一个}"
                              Glyph="{dx:SvgImageSource Uri='/Assets/Icons/up-square.svg'}"
@@ -37,20 +44,21 @@
                              Command="{Binding FindPreviousCommand}"/>
 
             <!-- 下一个：down-square.svg -->
-            <dx:SimpleButton x:Name="BtnNext" Margin="4,0,0,0"
+            <dx:SimpleButton Grid.Column="2" x:Name="BtnNext" Margin="4,0,0,0"
                              Width="30" Height="28"
                              ToolTip="{loc:Translate 下一个}"
                              Glyph="{dx:SvgImageSource Uri='/Assets/Icons/down-square.svg'}"
                              GlyphWidth="16" GlyphHeight="16"
                              Command="{Binding FindNextCommand}"/>
 
-            <dx:SimpleButton x:Name="BtnClose" Margin="8,0,0,0"
+            <!-- 关闭：只显示图标，文字放进 ToolTip，避免 30px 宽度裁切 -->
+            <dx:SimpleButton Grid.Column="3" x:Name="BtnClose" Margin="8,0,0,0"
                              Width="30" Height="28"
-                             Content="{loc:Translate 关闭}"
-                             Glyph="{dx:SvgImageSource Uri='/Assets/Icons/close/svg'}"
-GlyphWidth="16" GlyphHeight="16"
+                             ToolTip="{loc:Translate 关闭}"
+                             Glyph="{dx:SvgImageSource Uri='/Assets/Icons/close.svg'}"
+                             GlyphWidth="16" GlyphHeight="16"
                              Click="BtnClose_Click"/>
-        </StackPanel>
+        </Grid>
 
         <!-- 第二行：匹配方式 -->
         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
@@ -82,7 +90,7 @@ GlyphWidth="16" GlyphHeight="16"
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0"
-                       Text="{loc:Translate 过滤：| 表示或，\ 表示与}"
+                       Text="{loc:Translate 过滤：| 表示或，\\ 表示与}"
                        Foreground="#888888" FontSize="12"
                        TextWrapping="Wrap"/>
             <TextBlock Grid.Column="1" x:Name="StatusBlock"

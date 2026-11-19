@@ -43,6 +43,119 @@ namespace MultiSerialTool.Protocols.Serial
         /// <summary>复制反馈提示的自动清除计时</summary>
         private System.Windows.Threading.DispatcherTimer? _copyHintTimer;
 
+        /// <summary>纯文本视图当前订阅的日志集合（随设备切换重绑）</summary>
+        private INotifyCollectionChanged? _plainLogSubscription;
+
+        /// <summary>当前是否处于纯文本视图</summary>
+        private bool IsPlainMode => PlainModeToggle.IsChecked == true;
+
+        private void PlainModeToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            LogList.Visibility = Visibility.Collapsed;
+            PlainLogBox.Visibility = Visibility.Visible;
+            RebuildPlainLog();
+        }
+
+        private void PlainModeToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            LogList.Visibility = Visibility.Visible;
+            PlainLogBox.Visibility = Visibility.Collapsed;
+            PlainLogBox.Clear();
+        }
+
+        /// <summary>按当前 HEX/文本视图把当前设备全部日志重建为一段纯文本</summary>
+        private void RebuildPlainLog()
+        {
+            var vm = DataContext as SerialWorkspaceViewModel;
+            var sb = new System.Text.StringBuilder();
+
+            if (vm?.CurrentLogEntries is { } entries)
+            {
+                foreach (var entry in entries)
+                    AppendEntryText(sb, entry, vm.IsHexDisplay);
+            }
+
+            PlainLogBox.Text = sb.ToString();
+            PlainLogBox.ScrollToEnd();
+        }
+
+        /// <summary>新增日志追加到纯文本末尾；用户已向上翻看时不抢占滚动位置</summary>
+        private void AppendPlainEntries(IEnumerable<LogEntry> entries, bool hex)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var entry in entries)
+                AppendEntryText(sb, entry, hex);
+
+            if (sb.Length == 0)
+                return;
+
+            bool atBottom = IsPlainBoxAtBottom();
+            PlainLogBox.AppendText(sb.ToString());
+            if (atBottom)
+                PlainLogBox.ScrollToEnd();
+        }
+
+        /// <summary>单条日志的纯文本形式，与复制内容格式一致</summary>
+        private static void AppendEntryText(System.Text.StringBuilder sb, LogEntry entry, bool hex)
+        {
+            var content = hex && entry.HexText is not null ? entry.HexText : entry.Text;
+            sb.Append('[').Append(entry.Time.ToString("yyyy-MM-dd HH:mm:ss"))
+              .Append("] ").Append(entry.Prefix).Append(' ').AppendLine(content);
+        }
+
+        private bool IsPlainBoxAtBottom()
+        {
+            var scroll = FindVisualChild<System.Windows.Controls.ScrollViewer>(PlainLogBox);
+            return scroll is null
+                || scroll.VerticalOffset + scroll.ViewportHeight >= scroll.ExtentHeight - 1;
+        }
+
+        private static T? FindVisualChild<T>(System.Windows.DependencyObject? node)
+            where T : System.Windows.DependencyObject
+        {
+            if (node is null)
+                return null;
+
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(node);
+            for (int i = 0; i < count; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(node, i);
+                if (child is T match)
+                    return match;
+                if (FindVisualChild<T>(child) is { } found)
+                    return found;
+            }
+            return null;
+        }
+
+        /// <summary>订阅当前设备的日志集合，纯文本视图随之增量更新</summary>
+        private void BindPlainLogSubscription()
+        {
+            if (_plainLogSubscription is not null)
+                _plainLogSubscription.CollectionChanged -= OnPlainLogCollectionChanged;
+
+            _plainLogSubscription = (DataContext as SerialWorkspaceViewModel)?.CurrentLogEntries;
+
+            if (_plainLogSubscription is not null)
+                _plainLogSubscription.CollectionChanged += OnPlainLogCollectionChanged;
+        }
+
+        private void OnPlainLogCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (!IsPlainMode)
+                return;
+
+            // 新增走追加，其余（清空/删除/重置）整体重建
+            if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems is not null)
+            {
+                bool hex = (DataContext as SerialWorkspaceViewModel)?.IsHexDisplay ?? false;
+                AppendPlainEntries(e.NewItems.OfType<LogEntry>(), hex);
+                return;
+            }
+
+            RebuildPlainLog();
+        }
+
         /// <summary>
         /// 日志框快捷键：Ctrl+C 复制选中的多行（支持 Extended 多选），
         /// 按当前 HEX/文本视图决定复制内容，拼接为 [时间] TX/RX 内容。
@@ -89,11 +202,7 @@ namespace MultiSerialTool.Protocols.Serial
             var sb = new System.Text.StringBuilder();
 
             foreach (var entry in list)
-            {
-                var content = hex && entry.HexText != null ? entry.HexText : entry.Text;
-                sb.Append('[').Append(entry.Time.ToString("yyyy-MM-dd HH:mm:ss"))
-                  .Append("] ").Append(entry.Prefix).Append(' ').AppendLine(content);
-            }
+                AppendEntryText(sb, entry, hex);
 
             try
             {
@@ -168,28 +277,71 @@ namespace MultiSerialTool.Protocols.Serial
                 return;
             }
 
-            _findVm = new FindDialogViewModel(
-                itemsProvider: () =>
-                {
-                    var items = new List<object?>();
-                    if (LogList.ItemsSource is IEnumerable<object?> source)
-                        items.AddRange(source);
-                    return items;
-                },
-                textSelector: item => SelectSearchText(workspace, item),
-                locateCallback: LocateItem);
-
-            _findVm.FilterStateChanged += ApplyFindFilter;
-
-            _findDialog = new FindDialog(_findVm)
+            try
             {
-                Owner = System.Windows.Window.GetWindow(this)
-            };
-            _findDialog.Closed += OnFindDialogClosed;
+                _findVm = new FindDialogViewModel(
+                    itemsProvider: () =>
+                    {
+                        var items = new List<object?>();
+                        if (LogList.ItemsSource is IEnumerable<object?> source)
+                            items.AddRange(source);
+                        return items;
+                    },
+                    textSelector: item => SelectSearchText(workspace, item),
+                    locateCallback: LocateItem);
 
-            BindCollectionSubscription(LogList.ItemsSource as INotifyCollectionChanged);
-            ApplyFindFilter();
-            _findDialog.Show();
+                _findVm.FilterStateChanged += ApplyFindFilter;
+
+                _findDialog = new FindDialog(_findVm)
+                {
+                    Owner = System.Windows.Window.GetWindow(this)
+                };
+                _findDialog.Closed += OnFindDialogClosed;
+
+                BindCollectionSubscription(LogList.ItemsSource as INotifyCollectionChanged);
+                ApplyFindFilter();
+                _findDialog.Show();
+            }
+            catch (Exception ex)
+            {
+                // 弹窗加载失败时必须留痕：全局处理器会吞掉 UI 异常，否则表现为按钮点了没反应
+                Services.LogService.Current.Error(
+                    "Serial", "FindDialog", "打开查找弹窗失败", ex);
+                CleanupFindDialog();
+                System.Windows.MessageBox.Show(
+                    "打开查找弹窗失败：" + ex.Message,
+                    "查找",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>释放查找弹窗状态，恢复列表完整显示</summary>
+        private void CleanupFindDialog()
+        {
+            BindCollectionSubscription(null);
+
+            if (LogList.ItemsSource is not null)
+            {
+                var view = System.Windows.Data.CollectionViewSource
+                    .GetDefaultView(LogList.ItemsSource);
+                view.Filter = null;
+                view.Refresh();
+            }
+
+            _filterApplied = false;
+
+            if (DataContext is SerialWorkspaceViewModel workspace)
+                workspace.FindHighlightQuery = string.Empty;
+
+            if (_findVm is not null)
+                _findVm.FilterStateChanged -= ApplyFindFilter;
+
+            if (_findDialog is not null)
+                _findDialog.Closed -= OnFindDialogClosed;
+
+            _findDialog = null;
+            _findVm = null;
         }
 
         /// <summary>
@@ -228,8 +380,29 @@ namespace MultiSerialTool.Protocols.Serial
 
             var view = System.Windows.Data.CollectionViewSource
                 .GetDefaultView(LogList.ItemsSource);
-            view.Filter = _findVm.Matches;
+
+            // 纯查找模式不需要改动集合视图：只有过滤态才重新筛选，
+            // 避免每次击键都对全部日志做一次无意义的过滤刷新
+            bool wantFilter = _findVm.IsFilterMode;
+            if (wantFilter || _filterApplied)
+            {
+                view.Filter = wantFilter ? _findVm.Matches : null;
+                // 同方法组生成的委托相等，重复赋值不会触发刷新；
+                // 关键字清空后必须显式刷新，列表才会立刻恢复完整显示
+                view.Refresh();
+                _filterApplied = wantFilter;
+            }
+
+            if (DataContext is SerialWorkspaceViewModel workspace)
+            {
+                workspace.FindHighlightQuery = _findVm.Keyword;
+                workspace.FindHighlightMode = _findVm.Mode;
+                workspace.FindHighlightMatchCase = _findVm.MatchCase;
+            }
         }
+
+        /// <summary>集合视图当前是否挂着过滤谓词</summary>
+        private bool _filterApplied;
 
         /// <summary>订阅/退订日志集合变化，新增或清空后重新计算命中</summary>
         private void BindCollectionSubscription(INotifyCollectionChanged? collection)
@@ -250,21 +423,7 @@ namespace MultiSerialTool.Protocols.Serial
 
         /// <summary>弹窗关闭：移除过滤器并退订事件，恢复列表完整显示</summary>
         private void OnFindDialogClosed(object? sender, System.EventArgs e)
-        {
-            BindCollectionSubscription(null);
-
-            if (LogList.ItemsSource is not null)
-            {
-                System.Windows.Data.CollectionViewSource
-                    .GetDefaultView(LogList.ItemsSource).Filter = null;
-            }
-
-            if (_findDialog is not null)
-                _findDialog.Closed -= OnFindDialogClosed;
-
-            _findDialog = null;
-            _findVm = null;
-        }
+            => CleanupFindDialog();
 
         /// <summary>绑定工作区 VM，监听其设备切换通知</summary>
         private void OnDataContextChanged(object sender, System.Windows.DependencyPropertyChangedEventArgs e)
@@ -274,6 +433,10 @@ namespace MultiSerialTool.Protocols.Serial
 
             if (e.NewValue is SerialWorkspaceViewModel newVm)
                 newVm.PropertyChanged += OnWorkspacePropertyChanged;
+
+            BindPlainLogSubscription();
+            if (IsPlainMode)
+                RebuildPlainLog();
         }
 
         /// <summary>
@@ -282,8 +445,19 @@ namespace MultiSerialTool.Protocols.Serial
         /// </summary>
         private void OnWorkspacePropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
+            if (e.PropertyName == nameof(SerialWorkspaceViewModel.IsHexDisplay))
+            {
+                if (IsPlainMode)
+                    RebuildPlainLog();
+                return;
+            }
+
             if (e.PropertyName != nameof(SerialWorkspaceViewModel.CurrentLogEntries))
                 return;
+
+            BindPlainLogSubscription();
+            if (IsPlainMode)
+                RebuildPlainLog();
 
             LogList.UpdateLayout();
             if (LogList.Items.Count > 0)
@@ -327,14 +501,18 @@ namespace MultiSerialTool.Protocols.Serial
 
         /// <summary>
         /// Ctrl + 鼠标滚轮：缩放日志字体，范围 10~24；不带 Ctrl 时保持正常滚动。
+        /// 列表与纯文本视图共用此处理。
         /// </summary>
         private void LogList_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
         {
             if (System.Windows.Input.Keyboard.Modifiers != System.Windows.Input.ModifierKeys.Control)
                 return;
 
-            double next = LogList.FontSize + (e.Delta > 0 ? 1 : -1);
-            LogList.FontSize = System.Math.Clamp(next, 10, 24);
+            if (sender is not System.Windows.Controls.Control control)
+                return;
+
+            double next = control.FontSize + (e.Delta > 0 ? 1 : -1);
+            control.FontSize = System.Math.Clamp(next, 10, 24);
             e.Handled = true;
         }
 

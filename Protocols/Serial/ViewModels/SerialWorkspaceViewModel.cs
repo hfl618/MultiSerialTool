@@ -7,6 +7,7 @@ using MultiSerialTool.Services;
 using MultiSerialTool.Services.Production;
 using MultiSerialTool.Services.Storage;
 using MultiSerialTool.Shared;
+using MultiSerialTool.Shared.Find;
 using MultiSerialTool.ViewModels;
 
 namespace MultiSerialTool.Protocols.Serial;
@@ -119,6 +120,30 @@ public class SerialWorkspaceViewModel : ViewModelBase
                 _workspaceState.Save();
             }
         }
+    }
+
+    private string _findHighlightQuery = string.Empty;
+    /// <summary>当前查找表达式原文，供日志高亮使用；为空表示不高亮</summary>
+    public string FindHighlightQuery
+    {
+        get => _findHighlightQuery;
+        set => SetProperty(ref _findHighlightQuery, value ?? string.Empty);
+    }
+
+    private FindMatchMode _findHighlightMode = FindMatchMode.Contains;
+    /// <summary>当前查找的匹配方式，日志高亮与查找判定保持一致</summary>
+    public FindMatchMode FindHighlightMode
+    {
+        get => _findHighlightMode;
+        set => SetProperty(ref _findHighlightMode, value);
+    }
+
+    private bool _findHighlightMatchCase;
+    /// <summary>当前查找是否区分大小写，影响高亮区间</summary>
+    public bool FindHighlightMatchCase
+    {
+        get => _findHighlightMatchCase;
+        set => SetProperty(ref _findHighlightMatchCase, value);
     }
 
     private bool _sidePaneOpen;

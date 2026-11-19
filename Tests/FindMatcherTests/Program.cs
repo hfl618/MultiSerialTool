@@ -67,6 +67,31 @@ Check("过滤-正则错误信息已回传",
 Check("过滤-正则或分组命中",
     FindMatcher.FilterMatch("ch1 12.3", @"^\d|ch1",
         FindMatchMode.Regex, true, out _), true);
+Check("过滤-正则含反斜杠转义可用",
+    FindMatcher.FilterMatch("v 12.34", @"\d+\.\d{2}",
+        FindMatchMode.Regex, false, out _), true);
+Check("过滤-正则竖线按替代解释",
+    FindMatcher.FilterMatch("ch2 ok", "ch1|ch2",
+        FindMatchMode.Regex, true, out _), true);
+
+// ---------- 高亮区间 ----------
+string Ranges(string text, string expr, FindMatchMode mode, bool caseSensitive)
+    => string.Join("|", FindMatcher.FindRanges(text, expr, mode, caseSensitive)
+        .Select(r => r.Start + ":" + r.Length));
+
+Check("高亮-包含两处", Ranges("ab ab", "ab", FindMatchMode.Contains, true) == "0:2|3:2", true);
+Check("高亮-大小写不敏感", Ranges("AB ab", "ab", FindMatchMode.Contains, false) == "0:2|3:2", true);
+Check("高亮-精确整段", Ranges("AT+CSQ", "AT+CSQ", FindMatchMode.Exact, true) == "0:6", true);
+Check("高亮-正则数字区间", Ranges("v 12.34", @"\d+\.\d{2}", FindMatchMode.Regex, true) == "2:5", true);
+Check("高亮-正则竖线按替代解释",
+    Ranges("ch2 ok", "ch1|ch2", FindMatchMode.Regex, true) == "0:3", true);
+Check("高亮-全词不匹配子串", Ranges("value valid", "value", FindMatchMode.WholeWord, false) == "0:5", true);
+Check("高亮-或表达式两项都高亮",
+    Ranges("battery voltage", "battery|voltage", FindMatchMode.Contains, false) == "0:7|8:7", true);
+Check("高亮-重叠区间合并",
+    Ranges("abc", "ab|bc", FindMatchMode.Contains, true) == "0:3", true);
+Check("高亮-空表达式不高亮", Ranges("abc", "", FindMatchMode.Contains, true) == "", true);
+Check("高亮-非法正则不抛异常", Ranges("abc", "(", FindMatchMode.Regex, true) == "", true);
 
 Console.WriteLine($"=== 结果：{pass} 通过 / {fail} 失败 ===");
 return fail == 0 ? 0 : 1;

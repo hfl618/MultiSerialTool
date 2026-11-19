@@ -14,9 +14,9 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
 
-    <!-- 窄窗口下整页可纵向滚动，横向由控件自身收缩/滚动，避免内容被裁掉 -->
+    <!-- 窄窗口下整页纵向滚动；内容仍超出时横向滚动，避免控件被裁切 -->
     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Disabled"
+                  HorizontalScrollBarVisibility="Auto"
                   Focusable="False">
     <dxlc:LayoutControl Orientation="Vertical" ItemSpace="10" Margin="8">
 
@@ -25,19 +25,22 @@
                           View="GroupBox" Orientation="Vertical"
                           IsEnabled="{Binding HasDevice}">
 
-            <!-- 标签在上、输入在下；按可用宽度自动折行，窄窗口不裁切 -->
+            <!-- 单行排布：路径列吃掉剩余宽度，其余列定宽，窄窗口下不折行 -->
             <dxlc:LayoutItem Label="{x:Null}">
-                <WrapPanel Margin="0,2,0,0">
-                    <StackPanel Width="140" Margin="0,0,12,10">
-                        <TextBlock Text="{loc:Translate 启用实时写入}"
-                                   Foreground="#666666" FontSize="11" Margin="0,0,0,3"
-                                   TextTrimming="CharacterEllipsis"/>
-                        <dxe:CheckEdit VerticalAlignment="Center"
-                                       HorizontalAlignment="Left"
-                                       IsChecked="{Binding RealtimeEnabled}"/>
-                    </StackPanel>
+                <Grid Margin="0,2,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="110"/>
+                        <ColumnDefinition Width="110"/>
+                        <ColumnDefinition Width="84"/>
+                    </Grid.ColumnDefinitions>
 
-                    <StackPanel Width="220" Margin="0,0,12,10">
+                    <dxe:CheckEdit Grid.Column="0" Margin="0,0,8,0"
+                                   VerticalAlignment="Bottom"
+                                   ToolTip="{loc:Translate 启用实时写入}"
+                                   IsChecked="{Binding RealtimeEnabled}"/>
+
+                    <StackPanel Grid.Column="1" Margin="0,0,8,0">
                         <TextBlock Text="{loc:Translate 导出路径}"
                                    Foreground="#666666" FontSize="11" Margin="0,0,0,3"
                                    TextTrimming="CharacterEllipsis"/>
@@ -58,7 +61,7 @@
                         </Grid>
                     </StackPanel>
 
-                    <StackPanel Width="160" Margin="0,0,12,10">
+                    <StackPanel Grid.Column="2" Margin="0,0,8,0">
                         <TextBlock Text="{loc:Translate 自定义名字}"
                                    Foreground="#666666" FontSize="11" Margin="0,0,0,3"
                                    TextTrimming="CharacterEllipsis"/>
@@ -66,7 +69,7 @@
                                       Text="{Binding CustomFileName, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
 
-                    <StackPanel Width="120" Margin="0,0,0,10">
+                    <StackPanel Grid.Column="3">
                         <TextBlock Text="{loc:Translate 导出类型}"
                                    Foreground="#666666" FontSize="11" Margin="0,0,0,3"
                                    TextTrimming="CharacterEllipsis"/>
@@ -76,13 +79,25 @@
                                           SelectedItem="{Binding FileFormat, Mode=TwoWay}"
                                           IsTextEditable="False"/>
                     </StackPanel>
-                </WrapPanel>
+                </Grid>
             </dxlc:LayoutItem>
 
-            <!-- 文件名预览：按当前目录、名字与类型展开占位符 -->
+            <!-- 文件名预览：按当前目录、名字与类型展开占位符；右侧按钮打开导出历史 -->
             <dxlc:LayoutItem Label="{loc:Translate 路径预览}">
-                <dxe:TextEdit Text="{Binding PreviewFilePath, Mode=OneWay}"
-                              IsReadOnly="True"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <dxe:TextEdit Grid.Column="0"
+                                  Text="{Binding PreviewFilePath, Mode=OneWay}"
+                                  IsReadOnly="True"/>
+                    <dx:SimpleButton Grid.Column="1" Margin="6,0,0,0"
+                                     Width="28" Height="28"
+                                     Glyph="{dx:SvgImageSource Uri='/Assets/Icons/history.svg'}"
+                                     ToolTip="{loc:Translate 导出历史}"
+                                     Click="BtnExportHistory_Click"/>
+                </Grid>
             </dxlc:LayoutItem>
 
             <!-- 占位符提示 -->
@@ -162,17 +177,17 @@
                         <DataGridTextColumn Header="{loc:Translate 序号}"
                                             Binding="{Binding Index}"
                                             IsReadOnly="True"
-                                            Width="60" MinWidth="50"/>
+                                            Width="Auto" MinWidth="40"/>
                         <DataGridTextColumn Header="{loc:Translate 命令}"
                                             Binding="{Binding Command, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="1.5*" MinWidth="100"/>
+                                            Width="1.5*" MinWidth="60"/>
                         <DataGridTextColumn Header="{loc:Translate 预期}"
                                             Binding="{Binding Expected, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="1.2*" MinWidth="80"/>
+                                            Width="1.2*" MinWidth="50"/>
 
                         <!-- 解析方式：下拉选择 exact/mask/regex，存储值不变，显示本地化文本 -->
                         <DataGridTemplateColumn Header="{loc:Translate 解析方式}"
-                                                Width="110" MinWidth="90">
+                                                Width="88" MinWidth="76">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox Margin="4"
@@ -189,7 +204,7 @@
 
                         <!-- 时间间隔：命中后延时毫秒数，仅允许整数输入 -->
                         <DataGridTemplateColumn Header="{loc:Translate 时间间隔}"
-                                                Width="100" MinWidth="80">
+                                                Width="72" MinWidth="60">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Grid Margin="4">
@@ -213,7 +228,7 @@
 
                         <!-- 操作：SVG 开关（启用/停用自动下发）+ 行内删除 -->
                         <DataGridTemplateColumn Header="{loc:Translate 操作}"
-                                                Width="90" MinWidth="80">
+                                                Width="72" MinWidth="60">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal"
@@ -248,7 +263,7 @@
 
                         <DataGridTextColumn Header="{loc:Translate 实际回复}"
                                             Binding="{Binding ActualReply, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="1.5*" MinWidth="100"/>
+                                            Width="1.5*" MinWidth="60"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </dxlc:LayoutItem>

@@ -18,7 +18,7 @@ public class FileExportRule
     /// <summary>
     /// 自定义文件名（不含扩展名）。支持占位符：
     /// {port} 端口名、{date} 日期、{time} 时间、{datetime} 日期时间、{device} 设备 Key。
-    /// 留空时使用默认 {port}_{datetime}。
+    /// 留空时使用默认 {port}_{date}，实时写入当天始终追加同一个文件。
     /// </summary>
     public string FileName { get; set; } = string.Empty;
 

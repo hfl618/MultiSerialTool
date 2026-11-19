@@ -1,0 +1,63 @@
+<Window x:Class="MultiSerialTool.Views.ExportHistoryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
+        mc:Ignorable="d"
+        Title="{loc:Translate 导出历史}"
+        Width="900" Height="460"
+        MinWidth="640" MinHeight="300"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F5F5" Foreground="#222222">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <DataGrid x:Name="HistoryGrid"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      CanUserResizeRows="False"
+                      SelectionMode="Single"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="All"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="{loc:Translate 设备}"
+                                        Binding="{Binding DeviceName}" Width="110"/>
+                    <DataGridTextColumn Header="{loc:Translate 文件}"
+                                        Binding="{Binding FilePath}" Width="*"/>
+                    <DataGridTextColumn Header="{loc:Translate 开始时间}"
+                                        Binding="{Binding StartText}" Width="135"/>
+                    <DataGridTextColumn Header="{loc:Translate 结束时间}"
+                                        Binding="{Binding EndText}" Width="135"/>
+                    <DataGridTextColumn Header="{loc:Translate 行数}"
+                                        Binding="{Binding Lines}" Width="70"/>
+                    <DataGridTextColumn Header="{loc:Translate 字节数}"
+                                        Binding="{Binding Bytes}" Width="90"/>
+                    <DataGridTextColumn Header="{loc:Translate 状态}"
+                                        Binding="{Binding Status}" Width="80"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- 无记录时覆盖在表格上的提示 -->
+            <TextBlock x:Name="EmptyHint"
+                       Text="{loc:Translate 暂无导出记录}"
+                       Foreground="#888888"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Visibility="Collapsed"/>
+        </Grid>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Content="{loc:Translate 关闭}" Width="80" Padding="0,4" Click="Close_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

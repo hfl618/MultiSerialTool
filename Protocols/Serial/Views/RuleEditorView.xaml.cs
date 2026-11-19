@@ -18,4 +18,14 @@ public partial class RuleEditorView : System.Windows.Controls.UserControl
         if (DataContext is RuleEditorViewModel vm && e.EditAction == System.Windows.Controls.DataGridEditAction.Commit)
             vm.NotifyEdited();
     }
+
+    /// <summary>打开导出历史列表（每次实时写入的时间、行数与字节数）</summary>
+    private void BtnExportHistory_Click(object sender, System.Windows.RoutedEventArgs e)
+    {
+        var window = new MultiSerialTool.Views.ExportHistoryWindow
+        {
+            Owner = System.Windows.Window.GetWindow(this)
+        };
+        window.ShowDialog();
+    }
 }

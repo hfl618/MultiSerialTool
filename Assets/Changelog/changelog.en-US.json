@@ -5,8 +5,16 @@
     "notes": [
       "Fixed the Auto-send checkbox in the command list not being manually uncheckable: its state now stays in sync with the command rule and is saved to the current device type's rule override right after toggling",
       "The side-pane + button now opens a custom-command dialog for name, send frame, format (HEX/ASCII) and auto-send; the command is added to the list and saved to the current rule",
-      "Rule page is now responsive: file-rule fields wrap to the window width, the whole page scrolls vertically, and table columns stretch or shrink with the window, so nothing gets clipped when the window is small",
-      "Main window now has a fixed minimum size of 800x450 so the UI cannot be shrunk into an unusable layout"
+      "Rule page is now responsive: file-rule fields sit on one row with the path column taking the remaining width, the page scrolls vertically and horizontally when content still overflows, and table columns have narrower minimum widths, so nothing gets clipped when the window is small",
+      "Main window now has a fixed minimum size of 800x450 so the UI cannot be shrunk into an unusable layout",
+      "Fixed the log Find button doing nothing: the find dialog's close button pointed at a wrong icon path, so the dialog threw while loading and the global handler swallowed the error; the path is corrected, and a failed open now logs and shows a message",
+      "Find now highlights matches in the log list: the current keyword (and each condition of a filter expression) gets a highlighted background in all four match modes (contains, whole word, exact, regex)",
+      "Fixed the log list not restoring hidden rows after clearing the find keyword: the filtered view is refreshed whenever the filter state changes, and closing the find dialog restores the full list as well",
+      "Find input is debounced (180 ms) and compiled regexes are cached, so live filtering stays smooth on logs with tens of thousands of rows",
+      "Fixed regex mode not working under Filter: backslash was treated as the AND separator, so expressions like \\d+ never matched; the whole expression is now interpreted as one regex",
+      "Find dialog layout is adaptive: the window is wider (430), the keyword box stretches, the close button is icon-only with a tooltip, and the action buttons are no longer clipped",
+      "Fixed real-time write creating a new file for every second: the default file name is now per-day, and the {datetime}/{time} placeholders stay at the moment recording began, so the same device keeps appending to one file all day and only rolls over at midnight",
+      "The file rules section now has an Export History button listing the start/end time, file, line count and byte count of each real-time write session; the history is stored locally and keeps the latest 500 entries"
     ]
   },
   {
@@ -31,6 +39,7 @@
       "Oscilloscope axis labels, measurement table headers, table toolbar and measurement row names unified to English, fixing garbled CJK tick labels",
       "Voltage/div lower limit extended to 1 mV/div, with extra decimals on mV-scale tick labels",
       "Refactored the serial module into layered Connection/Framing/Rules/ViewModels/Views structure",
+      "Reference rules refined",
       "Added instrument scope window and device panel view",
       "Added real-time file recording service and storage module",
       "Added checksum, frame parsing, rule engine and edge-case test projects",

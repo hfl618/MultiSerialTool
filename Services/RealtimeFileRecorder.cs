@@ -10,7 +10,7 @@ namespace MultiSerialTool.Services;
 /// <summary>
 /// 串口数据实时落盘记录器（单例）。每台设备维护独立的追加流，
 /// 支持 CSV / TXT / HEX / JSON Lines 四种结构，线程安全（串口回调在后台线程）。
-/// 规则变更时自动关闭旧流，下次写入按新规则重开；跨天日期占位符变化会自动切文件。
+/// 规则变更时自动关闭旧流，下次写入按新规则重开；同一设备同一天始终追加同一个文件，跨天才切新文件。
 /// </summary>
 public sealed class RealtimeFileRecorder
 {
@@ -55,7 +55,7 @@ public sealed class RealtimeFileRecorder
                                   .Replace('-', ' ');
                 string effectiveText = text ?? string.Empty;
 
-                string path = BuildPath(rule, device, key, time);
+                string path = BuildPath(rule, device, key, state.StampFor(time));
                 if (state.Writer is null || !string.Equals(state.Path, path, StringComparison.OrdinalIgnoreCase))
                 {
                     state.Close();
@@ -63,7 +63,16 @@ public sealed class RealtimeFileRecorder
                 }
 
                 string dir = isTx ? "TX" : "RX";
+
+                // 打开后的第一条数据才计入历史，避免开关切换留下空记录
+                if (state.Record is null)
+                {
+                    state.StartOffset = state.Writer!.BaseStream.Length;
+                    state.Record = ExportHistoryStore.Begin(key, device.Name, path);
+                }
+
                 AppendLine(state, rule.Format, time, dir, effectiveHex, effectiveText);
+                state.LineCount++;
             }
             catch (Exception ex)
             {
@@ -146,18 +155,18 @@ public sealed class RealtimeFileRecorder
 
     /// <summary>计算完整文件路径（应用占位符并清洗文件名）</summary>
     private static string BuildPath(FileExportRule rule, SerialDeviceInfo device,
-                                    string deviceKey, DateTime time)
+                                    string deviceKey, DateTime stamp)
     {
         string template = string.IsNullOrWhiteSpace(rule.FileName)
-            ? "{port}_{datetime}"
+            ? "{port}_{date}"
             : rule.FileName.Trim();
 
         string name = template
             .Replace("{port}", device.Name)
             .Replace("{device}", deviceKey)
-            .Replace("{datetime}", time.ToString("yyyyMMdd_HHmmss"))
-            .Replace("{date}", time.ToString("yyyyMMdd"))
-            .Replace("{time}", time.ToString("HHmmss"));
+            .Replace("{datetime}", stamp.ToString("yyyyMMdd_HHmmss"))
+            .Replace("{date}", stamp.ToString("yyyyMMdd"))
+            .Replace("{time}", stamp.ToString("HHmmss"));
 
         foreach (var c in Path.GetInvalidFileNameChars())
             name = name.Replace(c, '_');
@@ -202,12 +211,52 @@ public sealed class RealtimeFileRecorder
         /// <summary>缓存的规则；null 表示需重新加载</summary>
         public FileExportRule? Rule { get; set; }
 
-        /// <summary>关闭流并重置路径</summary>
+        /// <summary>当前文件的导出历史记录；null 表示尚未写入数据</summary>
+        public ExportRecord? Record { get; set; }
+
+        /// <summary>文件打开时的长度，用于算出本次写入的字节数</summary>
+        public long StartOffset { get; set; }
+
+        /// <summary>本次写入的数据行数</summary>
+        public long LineCount { get; set; }
+
+        /// <summary>本次记录的起始时间，用于展开文件名占位符；跨天时重置</summary>
+        private DateTime? _stamp;
+
+        /// <summary>取文件名时间戳：同一天固定为首次写入的时刻，跨天才更新</summary>
+        public DateTime StampFor(DateTime time)
+        {
+            if (_stamp is null || _stamp.Value.Date != time.Date)
+                _stamp = time;
+            return _stamp.Value;
+        }
+
+        /// <summary>关闭流、结算导出历史并重置路径</summary>
         public void Close()
         {
-            Writer?.Dispose();
+            if (Writer is not null)
+            {
+                long bytes = 0;
+                try
+                {
+                    bytes = Writer.BaseStream.Length - StartOffset;
+                }
+                catch (Exception)
+                {
+                    // 流已失效时按 0 计，不影响关闭流程
+                }
+
+                Writer.Dispose();
+
+                if (Record is not null)
+                    ExportHistoryStore.Complete(Record, LineCount, bytes);
+            }
+
             Writer = null;
             Path = null;
+            Record = null;
+            StartOffset = 0;
+            LineCount = 0;
         }
     }
 }

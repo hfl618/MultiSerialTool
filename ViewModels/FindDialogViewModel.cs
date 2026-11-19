@@ -20,6 +20,7 @@ public sealed class FindDialogViewModel : ViewModelBase
     private readonly Action<object?>? _locateCallback;
 
     private readonly List<object?> _matches = new();
+    private readonly System.Windows.Threading.DispatcherTimer _rebuildTimer;
     private int _currentIndex = -1;
     private string _keyword = string.Empty;
     private string _selectedModeKey = "包含";
@@ -38,7 +39,7 @@ public sealed class FindDialogViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _keyword, value ?? string.Empty))
-                Rebuild(autoLocate: true);
+                ScheduleRebuild();
         }
     }
 
@@ -104,6 +105,9 @@ public sealed class FindDialogViewModel : ViewModelBase
         _ => FindMatchMode.Contains
     };
 
+    /// <summary>当前匹配方式枚举（供宿主做高亮等联动）。</summary>
+    public FindMatchMode Mode => CurrentMode;
+
     /// <summary>下一个命中。</summary>
     public RelayCommand FindNextCommand { get; }
 
@@ -121,6 +125,27 @@ public sealed class FindDialogViewModel : ViewModelBase
 
         FindNextCommand = new RelayCommand(FindNext, () => HasMatches);
         FindPreviousCommand = new RelayCommand(FindPrevious, () => HasMatches);
+
+        // 边输入边重算会在大日志下卡住 UI：合并连续击键，停手后再算一次
+        _rebuildTimer = new System.Windows.Threading.DispatcherTimer(
+            System.Windows.Threading.DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(180)
+        };
+        _rebuildTimer.Tick += OnRebuildTimerTick;
+    }
+
+    private void OnRebuildTimerTick(object? sender, EventArgs e)
+    {
+        _rebuildTimer.Stop();
+        Rebuild(autoLocate: true);
+    }
+
+    /// <summary>关键字变化后延迟重算，避免逐字符全量扫描。</summary>
+    private void ScheduleRebuild()
+    {
+        _rebuildTimer.Stop();
+        _rebuildTimer.Start();
     }
 
     /// <summary>
@@ -168,6 +193,7 @@ public sealed class FindDialogViewModel : ViewModelBase
     /// <summary>重新计算全部命中项。</summary>
     private void Rebuild(bool autoLocate)
     {
+        _rebuildTimer.Stop();
         _matches.Clear();
         _currentIndex = -1;
         _regexError = null;

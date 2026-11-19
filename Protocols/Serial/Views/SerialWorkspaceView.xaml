@@ -9,6 +9,7 @@
              xmlns:local="clr-namespace:MultiSerialTool.Protocols.Serial"
              xmlns:views="clr-namespace:MultiSerialTool.Views"
              xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
+             xmlns:find="clr-namespace:MultiSerialTool.Shared.Find"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
     <UserControl.Resources>
@@ -62,12 +63,22 @@
                                        FontWeight="SemiBold"/>
                         </StackPanel>
 
-                        <!-- HEX 模式：勾选后发送框按十六进制解析，日志按 HEX 显示 -->
-                        <CheckBox Grid.Column="1" VerticalAlignment="Center"
-                                  Margin="0,0,12,0"
-                                  Content="{loc:Translate HEX }"
-                                  ToolTip="{loc:Translate 勾选后发送框内容按十六进制解析为字节，日志以 HEX 显示}"
-                                  IsChecked="{Binding IsHexDisplay}"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <!-- HEX 模式：勾选后发送框按十六进制解析，日志按 HEX 显示 -->
+                            <CheckBox VerticalAlignment="Center"
+                                      Margin="0,0,12,0"
+                                      Content="{loc:Translate HEX }"
+                                      ToolTip="{loc:Translate 勾选后发送框内容按十六进制解析为字节，日志以 HEX 显示}"
+                                      IsChecked="{Binding IsHexDisplay}"/>
+
+                            <!-- 纯文本模式：整段日志放进只读文本框，可自由选中任意片段 -->
+                            <CheckBox x:Name="PlainModeToggle" VerticalAlignment="Center"
+                                      Margin="0,0,12,0"
+                                      Content="{loc:Translate 纯文本}"
+                                      ToolTip="{loc:Translate 勾选后日志以整段文本显示，可用鼠标自由选中任意字符复制；不勾选为按行彩色列表}"
+                                      Checked="PlainModeToggle_Checked"
+                                      Unchecked="PlainModeToggle_Unchecked"/>
+                        </StackPanel>
 
                         <!-- 右侧：图标按钮组 -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal">
@@ -114,13 +125,13 @@
                                      Command="{Binding SendCommand}"/>
                 </Grid>
 
-                <!-- 日志列表：绑定当前选中设备自己的集合 -->
+                <!-- 日志区：按行彩色列表 / 整段纯文本视图二选一 -->
+                <Grid Margin="8">
                 <ListBox x:Name="LogList"
                          ItemsSource="{Binding CurrentLogEntries}"
                          Background="#E8E8E8"
                          BorderBrush="#CCCCCC"
                          BorderThickness="1"
-                         Margin="8"
                          FontSize="13"
                          FontFamily="Consolas"
                          SelectionMode="Extended"
@@ -178,8 +189,11 @@
                                 </TextBlock>
 
                                 <!-- HEX 视图：仅 RX 且开启 HEX 且存在 HexText 时显示 -->
-                                <TextBlock Text="{Binding HexText}">
-                                    <TextBlock.Style>
+                                <find:HighlightTextBlock SourceText="{Binding HexText}"
+                                                         Query="{Binding DataContext.FindHighlightQuery, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                         Mode="{Binding DataContext.FindHighlightMode, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                         MatchCase="{Binding DataContext.FindHighlightMatchCase, RelativeSource={RelativeSource AncestorType=ListBox}}">
+                                    <find:HighlightTextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Visibility" Value="Visible"/>
                                             <Setter Property="Foreground" Value="{Binding DataContext.RxColor, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
@@ -192,12 +206,15 @@
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                    </find:HighlightTextBlock.Style>
+                                </find:HighlightTextBlock>
 
                                 <!-- ASCII 文本视图：HEX 关闭，或无 HexText（TX 条目）时显示 -->
-                                <TextBlock Text="{Binding Text}">
-                                    <TextBlock.Style>
+                                <find:HighlightTextBlock SourceText="{Binding Text}"
+                                                         Query="{Binding DataContext.FindHighlightQuery, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                         Mode="{Binding DataContext.FindHighlightMode, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                         MatchCase="{Binding DataContext.FindHighlightMatchCase, RelativeSource={RelativeSource AncestorType=ListBox}}">
+                                    <find:HighlightTextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Visibility" Value="Collapsed"/>
                                             <Setter Property="Foreground" Value="{Binding DataContext.TxColor, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
@@ -210,12 +227,28 @@
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                    </find:HighlightTextBlock.Style>
+                                </find:HighlightTextBlock>
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+
+                <!-- 纯文本视图：只读文本框，支持任意字符选中与 Ctrl+C -->
+                <TextBox x:Name="PlainLogBox"
+                         Visibility="Collapsed"
+                         IsReadOnly="True"
+                         IsReadOnlyCaretVisible="True"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         Background="#E8E8E8"
+                         BorderBrush="#CCCCCC"
+                         BorderThickness="1"
+                         FontSize="13"
+                         FontFamily="Consolas"
+                         VerticalScrollBarVisibility="Auto"
+                         PreviewMouseWheel="LogList_PreviewMouseWheel"/>
+                </Grid>
 
             </DockPanel>
 

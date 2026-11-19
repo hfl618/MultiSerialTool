@@ -197,7 +197,7 @@ public class RuleEditorViewModel : ViewModelBase
             string key = DeviceKeyProvider.GetKey(_currentDevice);
             var rule = _fileRule;
             string template = string.IsNullOrWhiteSpace(rule.FileName)
-                ? "{port}_{datetime}"
+                ? "{port}_{date}"
                 : rule.FileName.Trim();
             DateTime now = DateTime.Now;
             string name = template
