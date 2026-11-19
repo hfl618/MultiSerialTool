@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Controls.Primitives;
-using System.Windows.Input;
 
 namespace MultiSerialTool.Protocols.Serial
 {
@@ -13,20 +12,6 @@ namespace MultiSerialTool.Protocols.Serial
         public SidePaneView()
         {
             InitializeComponent();
-        }
-
-        /// <summary>
-        /// 自动发送复选框：阻止点击冒泡到整行（否则会同时触发发送），
-        /// 因事件被拦截 CheckEdit 不会自行切换，这里手动翻转 AutoSend，
-        /// 绑定会反映新值，随后交给 VM 持久化。
-        /// </summary>
-        private void AutoSend_PreviewMouseDown(object sender, MouseButtonEventArgs e)
-        {
-            e.Handled = true;
-            if (sender is FrameworkElement fe && fe.DataContext is CommandRule cmd)
-                cmd.AutoSend = !cmd.AutoSend;
-            if (DataContext is SerialWorkspaceViewModel vm)
-                vm.PersistCommandToggle();
         }
 
         /// <summary>

@@ -72,21 +72,24 @@
                                     <DataTemplate>
                                         <Grid x:Name="RowRoot" Margin="4,2">
                                             <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <dx:SimpleButton Grid.Column="0" Padding="6,4"
+
+                                            <!-- 自动发送复选框：独立列，不与整行按钮嵌套，点击只切换不发送 -->
+                                            <dxe:CheckEdit Grid.Column="0"
+                                                           IsChecked="{Binding AutoSend, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                           VerticalAlignment="Center"
+                                                           Margin="2,0,6,0"
+                                                           ToolTip="{loc:Translate 自动发送}"/>
+
+                                            <dx:SimpleButton Grid.Column="1" Padding="6,4"
                                                             HorizontalContentAlignment="Left"
                                                             ToolTip="{Binding ResultMessage}"
                                                             Command="{Binding DataContext.CommandClickCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                             CommandParameter="{Binding}">
                                                 <StackPanel Orientation="Horizontal">
-                                                    <!-- 自动发送复选框：拦截冒泡，避免勾选时触发整行发送 -->
-                                                    <dxe:CheckEdit IsChecked="{Binding AutoSend, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                   VerticalAlignment="Center"
-                                                                   Margin="0,0,6,0"
-                                                                   ToolTip="{loc:Translate 自动发送}"
-                                                                   PreviewMouseLeftButtonDown="AutoSend_PreviewMouseDown"/>
                                                     <Ellipse Width="10" Height="10"
                                                              Fill="{Binding StatusBrush}"
                                                              VerticalAlignment="Center"
@@ -97,8 +100,8 @@
                                                 </StackPanel>
                                             </dx:SimpleButton>
 
-                                            <!-- 行操作：悬停显示竖排 ↑ ↓ ×，独立列避免遮挡命令名 -->
-                                            <StackPanel x:Name="RowActions" Grid.Column="1"
+                                            <!-- 行操作：悬停显示竖排 ↑ ↓，独立列避免遮挡命令名 -->
+                                            <StackPanel x:Name="RowActions" Grid.Column="2"
                                                         Orientation="Vertical"
                                                         VerticalAlignment="Center"
                                                         Visibility="Collapsed">

@@ -327,6 +327,8 @@ public class SerialWorkspaceViewModel : ViewModelBase
     {
         _expectationRunner.CancelAll();
 
+        foreach (var existing in CommandItems)
+            existing.PropertyChanged -= OnCommandItemPropertyChanged;
         CommandItems.Clear();
         QuickSendItems.Clear();
         AutoReplyItems.Clear();
@@ -336,7 +338,10 @@ public class SerialWorkspaceViewModel : ViewModelBase
             return;
 
         foreach (var cmd in rule.Commands)
+        {
+            cmd.PropertyChanged += OnCommandItemPropertyChanged;
             CommandItems.Add(cmd);
+        }
 
         // 兼容旧集合（阶段3 清理）
         foreach (var quick in rule.QuickSends)
@@ -347,20 +352,31 @@ public class SerialWorkspaceViewModel : ViewModelBase
         RestoreResultsForDevice();
     }
 
-    /// <summary>侧边栏新增一条命令，同时写入规则并持久化</summary>
+    /// <summary>命令勾选状态变化后立即持久化到规则覆盖层</summary>
+    private void OnCommandItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(CommandRule.Mode))
+            PersistCommands();
+    }
+
+    /// <summary>侧边栏新增一条自定义命令：弹窗填写后写入规则并持久化</summary>
     private void AddCommandItem()
     {
         var rule = RuleSessionService.Current.CurrentRule;
         if (rule is null)
             return;
 
-        var cmd = new CommandRule
+        var editor = new CommandEditorWindow
         {
-            Index = CommandItems.Count + 1,
-            Name = "新命令",
-            Mode = CommandRuleMode.Manual
+            Owner = System.Windows.Application.Current?.MainWindow
         };
+        if (editor.ShowDialog() != true || editor.Result is null)
+            return;
+
+        var cmd = editor.Result;
+        cmd.Index = CommandItems.Count + 1;
         rule.Commands.Add(cmd);
+        cmd.PropertyChanged += OnCommandItemPropertyChanged;
         CommandItems.Add(cmd);
         PersistCommands();
     }
@@ -372,6 +388,7 @@ public class SerialWorkspaceViewModel : ViewModelBase
             return;
 
         var cmd = CommandItems[^1];
+        cmd.PropertyChanged -= OnCommandItemPropertyChanged;
         RuleSessionService.Current.CurrentRule?.Commands.Remove(cmd);
         CommandItems.RemoveAt(CommandItems.Count - 1);
         RenumberCommands();
@@ -422,9 +439,6 @@ public class SerialWorkspaceViewModel : ViewModelBase
         RuleMigration.BackfillLegacy(rule);
         RuleStore.Save(name, rule);
     }
-
-    /// <summary>侧边栏复选框切换后持久化（供视图事件调用）</summary>
-    public void PersistCommandToggle() => PersistCommands();
 
     /// <summary>点击侧边栏命令：组装帧 → 统一发送 → 启动断言等待</summary>
     private void ExecuteCommand(CommandRule? cmd)

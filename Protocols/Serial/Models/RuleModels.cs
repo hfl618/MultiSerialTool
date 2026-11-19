@@ -221,6 +221,8 @@ public class CommandRule : System.ComponentModel.INotifyPropertyChanged, IExpect
             {
                 PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IsAuto)));
                 PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IsManual)));
+                // AutoSend 是 Mode 的代理，不通知会让侧边栏复选框停在旧状态
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(AutoSend)));
             }
         }
     }

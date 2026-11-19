@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.0.6",
+    "date": "2026-11-19",
+    "notes": [
+      "Fixed the Auto-send checkbox in the command list not being manually uncheckable: its state now stays in sync with the command rule and is saved to the current device type's rule override right after toggling",
+      "The side-pane + button now opens a custom-command dialog for name, send frame, format (HEX/ASCII) and auto-send; the command is added to the list and saved to the current rule"
+    ]
+  },
+  {
     "version": "1.0.5",
     "date": "2026-11-17",
     "notes": [
