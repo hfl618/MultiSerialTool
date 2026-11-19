@@ -106,7 +106,7 @@
             <dxlc:LayoutItem Label="{x:Null}">
                 <!-- 宽度钳制到视口：LayoutControl 按不受限宽度测量文本，不钳制会撑宽整页 -->
                 <TextBlock Text="{loc:Translate 文件名占位符提示}"
-                           MaxWidth="{Binding ViewportWidth, ElementName=PageRoot,
+                           MaxWidth="{Binding ActualWidth, ElementName=PageRoot,
                                              Converter={StaticResource ClampWidth}, ConverterParameter=96}"
                            Foreground="#888888" FontSize="11" TextWrapping="Wrap"/>
             </dxlc:LayoutItem>
@@ -152,7 +152,7 @@
             <dxlc:LayoutItem Label="{x:Null}">
                 <DataGrid ItemsSource="{Binding AutoReplyRules}"
                           SelectedItem="{Binding SelectedAutoReply}"
-                          MaxWidth="{Binding ViewportWidth, ElementName=PageRoot,
+                          MaxWidth="{Binding ActualWidth, ElementName=PageRoot,
                                             Converter={StaticResource ClampWidth}, ConverterParameter=64}"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
