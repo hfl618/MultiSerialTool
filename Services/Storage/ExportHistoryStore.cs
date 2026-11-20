@@ -91,6 +91,24 @@ public static class ExportHistoryStore
             }).ToArray();
     }
 
+    /// <summary>
+    /// 删除历史记录，返回删除条数。界面拿到的是快照副本，
+    /// 因此按设备、文件与开始时间三个字段匹配原始记录。
+    /// </summary>
+    public static int Remove(IEnumerable<ExportRecord> records)
+    {
+        var targets = records.Select(r => (r.DeviceKey, r.FilePath, r.StartTime)).ToHashSet();
+
+        lock (Sync)
+        {
+            var list = Records();
+            var removed = list.RemoveAll(r => targets.Contains((r.DeviceKey, r.FilePath, r.StartTime)));
+            if (removed > 0)
+                Save(list);
+            return removed;
+        }
+    }
+
     private static List<ExportRecord> Records() =>
         _records ??= JsonFile.Load(AppPaths.ExportHistoryFile, () => new List<ExportRecord>());
 

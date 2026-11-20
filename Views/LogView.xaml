@@ -12,11 +12,39 @@
     </UserControl.Resources>
 
     <DockPanel Margin="8">
+        <!-- 顶部标题栏：标题 + 返回设备区 -->
+        <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="{loc:Translate 日志}"
+                       FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Content="{loc:Translate 返回设备区}" Padding="12,4"
+                    Command="{Binding DataContext.ShowWorkspaceCommand,
+                              RelativeSource={RelativeSource AncestorType=Window}}"/>
+        </Grid>
+
         <!-- 工具条 -->
         <Border DockPanel.Dock="Top" Background="#EFEFEF"
-                BorderBrush="#CCCCCC" BorderThickness="0,0,0,1" Padding="8,4">
+                BorderBrush="#CCCCCC" BorderThickness="0,0,0,1" Padding="8,6">
             <StackPanel>
-                <StackPanel Orientation="Horizontal">
+                <!-- 日志文件与分页 -->
+                <WrapPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <TextBlock Text="{loc:Translate 日志文件：}" VerticalAlignment="Center"/>
+                    <ComboBox Width="220" Margin="0,0,12,0"
+                              ItemsSource="{Binding FileOptions}"
+                              SelectedItem="{Binding SelectedDay}"
+                              DisplayMemberPath="Display"/>
+                    <dx:SimpleButton Content="{loc:Translate 更早}" Width="56" Margin="0,0,6,0"
+                                     Command="{Binding LoadOlderCommand}"/>
+                    <dx:SimpleButton Content="{loc:Translate 较新}" Width="56" Margin="0,0,12,0"
+                                     Command="{Binding LoadNewerCommand}"/>
+                    <TextBlock Text="{Binding PageInfo}" VerticalAlignment="Center" Foreground="#666666"/>
+                </WrapPanel>
+
+                <!-- 过滤 -->
+                <WrapPanel Orientation="Horizontal" Margin="0,0,0,6">
                     <TextBlock Text="{loc:Translate 级别：}" VerticalAlignment="Center"/>
                     <ComboBox Width="90" Margin="0,0,12,0"
                               ItemsSource="{Binding LevelOptions}"
@@ -28,14 +56,38 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
+
+                    <TextBlock Text="{loc:Translate 来源：}" VerticalAlignment="Center"/>
+                    <ComboBox Width="120" Margin="0,0,12,0"
+                              ItemsSource="{Binding SourceOptions}"
+                              SelectedItem="{Binding SelectedSource}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource LocConverter}}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <TextBlock Text="{loc:Translate 搜索：}" VerticalAlignment="Center"/>
+                    <TextBox Width="220" VerticalContentAlignment="Center"
+                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="{loc:Translate 搜索提示}"/>
+                </WrapPanel>
+
+                <!-- 操作 -->
+                <WrapPanel Orientation="Horizontal" Margin="0,0,0,6">
                     <dx:SimpleButton Content="{loc:Translate 清空}" Width="60" Margin="0,0,8,0"
                                      Command="{Binding ClearCommand}"/>
+                    <dx:SimpleButton Content="{loc:Translate 清空日志文件}" Width="100" Margin="0,0,8,0"
+                                     Command="{Binding ClearFileCommand}"/>
+                    <dx:SimpleButton Content="{loc:Translate 导出}" Width="60" Margin="0,0,8,0"
+                                     Command="{Binding ExportCommand}"/>
                     <dx:SimpleButton Content="{loc:Translate 打开日志目录}" Width="100"
                                      Command="{Binding OpenFolderCommand}"/>
-                </StackPanel>
+                </WrapPanel>
 
                 <!-- 路径显示与切换 -->
-                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <WrapPanel Orientation="Horizontal">
                     <TextBlock Text="{loc:Translate 日志路径：}" VerticalAlignment="Center"/>
                     <TextBox IsReadOnly="True" MinWidth="300" Margin="0,0,8,0"
                              Text="{Binding CurrentLogDirectory, Mode=OneWay}"
@@ -44,17 +96,32 @@
                                      Command="{Binding BrowseFolderCommand}"/>
                     <dx:SimpleButton Content="{loc:Translate 恢复默认}" Width="70"
                                      Command="{Binding ResetFolderCommand}"/>
-                </StackPanel>
+                </WrapPanel>
             </StackPanel>
         </Border>
 
         <!-- 日志列表 -->
-        <ListBox ItemsSource="{Binding EntriesView}"
+        <ListBox x:Name="LogList"
+                 ItemsSource="{Binding EntriesView}"
+                 SelectionMode="Extended"
                  Background="#FFFFFF"
                  BorderBrush="#CCCCCC"
                  BorderThickness="1"
                  FontSize="13"
+                 VirtualizingPanel.IsVirtualizing="True"
+                 VirtualizingPanel.VirtualizationMode="Recycling"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="{loc:Translate 复制选中}" InputGestureText="Ctrl+C"
+                              Click="CopySelected_Click"/>
+                    <MenuItem Header="{loc:Translate 复制全部}" Click="CopyAll_Click"/>
+                    <Separator/>
+                    <MenuItem Header="{loc:Translate 导出}"
+                              Command="{Binding PlacementTarget.DataContext.ExportCommand,
+                                        RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                </ContextMenu>
+            </ListBox.ContextMenu>
             <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
                     <Setter Property="Margin" Value="0"/>

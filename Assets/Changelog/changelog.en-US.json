@@ -6,6 +6,14 @@
       "Added an application icon: the main window, About, Export History, Find, New Command and Scope windows now all show the same icon",
       "The executable and the setup package carry the same icon, so Explorer, the taskbar and Apps & Features identify the app at a glance",
       "Fixed the log not scrolling automatically: both the row list and the plain-text view scroll to the newest entry, and still stay put while you scroll back through history",
+      "The log page has a Back to Workspace button and a title; changing the protocol on the left also returns to that workspace when Settings or Log is open",
+      "The log page now has keyword search and a source filter: the keyword syntax matches the serial page find (\"|\" = OR, \"\\\" = AND), and the source list fills itself with the modules that appear in the log",
+      "Copy selected or all log entries from the context menu or with Ctrl+C, and export the current filtered result to a txt file",
+      "Browse historical logs day by day: pick a date, then page through 5000 entries at a time with Older/Newer; reading happens on a background thread",
+      "Removed the 1000-entry in-memory cap: startup reloads the last 20,000 entries of today and older content is paged in on demand; the list is now virtualized, so a long session no longer creates a control per entry",
+      "The log page Clear button asks for confirmation and states that the log file is untouched; a separate Clear Log File button deletes today's file",
+      "Fixed timestamps of logs read back across days: entries are dated from the file name instead of always showing today",
+      "Export History can now delete records: select several rows with Ctrl or Shift, then use Delete; a confirmation prompt comes first",
       "Fixed find and filter in the plain-text view: with plain text enabled, match highlighting, filtering and previous/next navigation now work again",
       "Removed the redundant close button from the Find dialog; use the window title bar instead"
     ]

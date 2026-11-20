@@ -31,6 +31,8 @@ public class MainViewModel : ViewModelBase, IDisposable
 
             if (SetProperty(ref _currentProtocol, value))
             {
+                // 切换协议即换页：停留的 设置/LOG 覆盖层随之关闭
+                _overlay = null;
                 SwitchPage(value);
                 RaiseRightContent();
             }
@@ -67,6 +69,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     private SerialViewModel? _serialViewModel;
     private TcpViewModel? _tcpViewModel;
     private MqttViewModel? _mqttViewModel;
+    private LogViewModel? _logViewModel;
 
     public MainViewModel()
     {
@@ -84,7 +87,11 @@ public class MainViewModel : ViewModelBase, IDisposable
         });
         ShowLogCommand = new RelayCommand(() =>
         {
-            _overlay = new LogViewModel();
+            // 复用同一个实例：级别过滤与滚动位置保留，
+            // 也避免每次都新建 VM 重复挂 DirectoryChanged 事件（旧 VM 无法回收）。
+            _logViewModel ??= new LogViewModel();
+            _logViewModel.OnPageActivated();
+            _overlay = _logViewModel;
             RaiseRightContent();
         });
 

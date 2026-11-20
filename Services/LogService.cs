@@ -13,7 +13,8 @@ namespace MultiSerialTool.Services;
 /// === 日志系统使用说明 ===
 ///
 /// 1. 存储机制
-///    - 内存：Entries 集合供 LOG 页面实时绑定，上限 1000 条，超出自动淘汰最旧条目。
+///    - 内存：Entries 集合供 LOG 页面实时绑定，条数不设上限（在本进程内累积）；
+///      历史内容按天分文件，由 GetLogFiles/ReadPage 分页读取，不整文件灌进内存。
 ///    - 文件：%LocalAppData%\MultiSerialTool\Logs\log_yyyyMMdd.txt
 ///      （C:\Users\&lt;用户&gt;\AppData\Local\MultiSerialTool\Logs），按天一个文件；
 ///      同一天的多次运行自动追加。文件输出由 NLog 承担：
@@ -39,10 +40,18 @@ namespace MultiSerialTool.Services;
 /// </remarks>
 public class LogService
 {
-    /// <summary>解析历史日志行：时间 [级别/来源] 剩余内容。
+    /// <summary>
+    /// 解析历史日志行：时间 [级别/来源] 剩余内容。
     /// 必须声明在 Current 之前：静态字段按声明顺序初始化，Current 构造时就要用它。</summary>
     private static readonly Regex LineRegex =
         new(@"^\d{2}:\d{2}:\d{2}\.\d{3} \[([A-Z]+)/([^\]]+)\] (.*)$", RegexOptions.Compiled);
+
+    /// <summary>日志文件名：log_yyyyMMdd.txt，超限滚动后为 log_yyyyMMdd.N.txt</summary>
+    private static readonly Regex FileNameRegex =
+        new(@"^log_(\d{8})(?:\.(\d+))?\.txt$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    /// <summary>历史日志每页条数（页面“更早/较新”翻页步长）</summary>
+    public const int PageSize = 5000;
 
     /// <summary>默认日志目录（%LocalAppData%\MultiSerialTool\Logs）。
     /// 必须声明在 Current 之前：构造函数中就要读取它，否则静态初始化期间为 null。</summary>
@@ -53,8 +62,8 @@ public class LogService
     /// <summary>单例实例</summary>
     public static LogService Current { get; } = new();
 
-    /// <summary>内存中保留的最大条数，超出后丢弃最旧的</summary>
-    private const int MaxEntries = 1000;
+    /// <summary>启动回填条数：只把当天文件末尾这么多条读回内存，更早的走历史分页</summary>
+    private const int StartupBackfill = 20000;
 
     /// <summary>当前日志文件目录，可通过 SetLogDirectory 切换</summary>
     public string LogDirectory { get; private set; } = string.Empty;
@@ -173,7 +182,7 @@ public class LogService
     public string LogFile =>
         System.IO.Path.Combine(LogDirectory, $"log_{DateTime.Now:yyyyMMdd}.txt");
 
-    /// <summary>启动时读回当天文件，解析后回填内存集合（只保留最近 MaxEntries 条）</summary>
+    /// <summary>启动时读回当天文件末尾若干条回填内存集合；更早的内容走历史分页读取</summary>
     private void LoadTodayFile()
     {
         var path = LogFile;
@@ -182,16 +191,8 @@ public class LogService
 
         try
         {
-            using var reader = new System.IO.StreamReader(
-                path, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-            var loaded = new List<DebugLogEntry>();
-            while (reader.ReadLine() is { } line)
-            {
-                if (TryParseLine(line, out var entry))
-                    loaded.Add(entry);
-            }
-
-            foreach (var entry in loaded.Skip(System.Math.Max(0, loaded.Count - MaxEntries)))
+            var page = ReadPage(new[] { path }, 0, StartupBackfill);
+            foreach (var entry in page.Entries)
                 Entries.Add(entry);
         }
         catch (Exception ex)
@@ -201,7 +202,162 @@ public class LogService
         }
     }
 
-    private static bool TryParseLine(string line, out DebugLogEntry entry)
+    /// <summary>目录中的一天日志（含当天的滚动归档分卷）</summary>
+    public sealed class LogFileInfo
+    {
+        public DateOnly Date { get; init; }
+        /// <summary>按时间先后排列：[归档分卷...] + 当天当前文件</summary>
+        public IReadOnlyList<string> Paths { get; init; } = Array.Empty<string>();
+        public long TotalBytes { get; init; }
+    }
+
+    /// <summary>历史日志的一页</summary>
+    public sealed record LogPage(IReadOnlyList<DebugLogEntry> Entries, int TotalCount, bool HasMore);
+
+    /// <summary>枚举日志目录中按天分组的日志文件，日期新的在前</summary>
+    public IReadOnlyList<LogFileInfo> GetLogFiles()
+    {
+        try
+        {
+            var directory = new System.IO.DirectoryInfo(LogDirectory);
+            if (!directory.Exists)
+                return Array.Empty<LogFileInfo>();
+
+            var parts = new List<(DateOnly Date, int Part, string Path, long Size)>();
+            foreach (var file in directory.EnumerateFiles("log_*.txt"))
+            {
+                var match = FileNameRegex.Match(file.Name);
+                if (!match.Success)
+                    continue;
+                if (!DateOnly.TryParseExact(
+                        match.Groups[1].Value, "yyyyMMdd",
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var date))
+                    continue;
+
+                // 无分卷号的是当天正在写的文件，时间上最新，排在归档分卷之后
+                int part = match.Groups[2].Success
+                    ? int.Parse(match.Groups[2].Value,
+                                System.Globalization.CultureInfo.InvariantCulture)
+                    : int.MaxValue;
+
+                parts.Add((date, part, file.FullName, file.Length));
+            }
+
+            return parts
+                .GroupBy(p => p.Date)
+                .OrderByDescending(g => g.Key)
+                .Select(g => new LogFileInfo
+                {
+                    Date = g.Key,
+                    Paths = g.OrderBy(p => p.Part).Select(p => p.Path).ToArray(),
+                    TotalBytes = g.Sum(p => p.Size)
+                })
+                .ToArray();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"枚举日志文件失败：{ex.Message}");
+            return Array.Empty<LogFileInfo>();
+        }
+    }
+
+    /// <summary>
+    /// 从当天（或指定日期）的日志文件尾部往前读取一页，pageIndex 为距末尾的页序号（0 = 最新一页）。
+    /// 每次从文件头顺序扫描并只保留末尾窗口，内存占用与页大小成正比；
+    /// 返回的条目按时间升序。可在后台线程调用。
+    /// </summary>
+    public LogPage ReadPage(IReadOnlyList<string> paths, int pageIndex, int pageSize = PageSize)
+    {
+        if (paths.Count == 0 || pageSize <= 0)
+            return new LogPage(Array.Empty<DebugLogEntry>(), 0, false);
+
+        long windowSize = (long)(Math.Max(0, pageIndex) + 1) * pageSize;
+        var window = new Queue<DebugLogEntry>();
+        int total = 0;
+
+        foreach (var path in paths)
+        {
+            if (!System.IO.File.Exists(path))
+                continue;
+
+            var date = DateOfFile(path);
+            try
+            {
+                using var reader = new System.IO.StreamReader(
+                    path, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+                while (reader.ReadLine() is { } line)
+                {
+                    if (!TryParseLine(line, date, out var entry))
+                        continue;
+
+                    total++;
+                    window.Enqueue(entry);
+                    if (window.Count > windowSize)
+                        window.Dequeue();
+                }
+            }
+            catch (Exception ex)
+            {
+                // 单个分卷读失败（被占用/损坏）不影响其余分卷
+                System.Diagnostics.Debug.WriteLine($"读取日志文件失败 {path}：{ex.Message}");
+            }
+        }
+
+        var all = window.ToArray();
+        int end = all.Length - Math.Max(0, pageIndex) * pageSize;
+        int start = Math.Max(0, end - pageSize);
+        if (end <= 0)
+            return new LogPage(Array.Empty<DebugLogEntry>(), total, false);
+
+        var page = all[start..Math.Min(end, all.Length)];
+        // 窗口装满了整份文件就没有更早的内容；装不下则窗口外必然还有
+        bool hasMore = start > 0 || total > all.Length;
+        return new LogPage(page, total, hasMore);
+    }
+
+    /// <summary>从文件名解析日志日期（解析不出时按今天）</summary>
+    private static DateOnly DateOfFile(string path)
+    {
+        var match = FileNameRegex.Match(System.IO.Path.GetFileName(path));
+        if (match.Success && DateOnly.TryParseExact(
+                match.Groups[1].Value, "yyyyMMdd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var date))
+            return date;
+
+        return DateOnly.FromDateTime(DateTime.Now);
+    }
+
+    /// <summary>
+    /// 删除当天日志文件：先关停 NLog 释放文件句柄，删除后重建日志通道。
+    /// 已落盘内容不可恢复。成功返回 true。
+    /// </summary>
+    public bool ClearLogFile()
+    {
+        var path = LogFile;
+        try
+        {
+            LogManager.Flush();
+            LogManager.Shutdown();
+
+            if (System.IO.File.Exists(path))
+                System.IO.File.Delete(path);
+
+            // 重建目标，后续日志继续写入新文件
+            BuildNLogConfig(LogDirectory);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"删除日志文件失败：{ex.Message}");
+            // 无论成败都要把日志通道恢复回去
+            try { BuildNLogConfig(LogDirectory); } catch { /* 恢复失败不再叠加异常 */ }
+            return false;
+        }
+    }
+
+    private static bool TryParseLine(string line, DateOnly date, out DebugLogEntry entry)
     {
         entry = new DebugLogEntry();
         var match = LineRegex.Match(line);
@@ -222,9 +378,10 @@ public class LogService
             message = rest[(split + 2)..];
         }
 
+        // 文件内只存时分秒，日期由文件名补齐，跨天日志的时间才是对的
         entry = new DebugLogEntry
         {
-            Time = DateTime.Now,   // 文件内只存时分秒，日期按当天补全
+            Time = date.ToDateTime(TimeOnly.FromDateTime(DateTime.Now)),
             Level = level,
             Source = match.Groups[2].Value,
             Operation = operation,
@@ -314,13 +471,9 @@ public class LogService
         logger.Log(ev);
     }
 
+    /// <summary>把条目送进 UI 集合。条数不设上限：量大时按天分文件，由历史分页承担。</summary>
     private void DispatchToUi(DebugLogEntry entry)
-        => DispatchToUi(() =>
-        {
-            Entries.Add(entry);
-            while (Entries.Count > MaxEntries)
-                Entries.RemoveAt(0);
-        });
+        => DispatchToUi(() => Entries.Add(entry));
 
     private static void DispatchToUi(Action action)
     {

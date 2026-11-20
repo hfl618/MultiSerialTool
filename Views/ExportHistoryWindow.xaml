@@ -25,7 +25,9 @@
                       CanUserAddRows="False"
                       CanUserDeleteRows="False"
                       CanUserResizeRows="False"
-                      SelectionMode="Single"
+                      SelectionMode="Extended"
+                      SelectionUnit="FullRow"
+                      SelectionChanged="HistoryGrid_SelectionChanged"
                       HeadersVisibility="Column"
                       GridLinesVisibility="All"
                       HorizontalScrollBarVisibility="Auto"
@@ -57,8 +59,19 @@
                        Visibility="Collapsed"/>
         </Grid>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button Content="{loc:Translate 关闭}" Width="80" Padding="0,4" Click="Close_Click"/>
-        </StackPanel>
+        <Grid Grid.Row="1" Margin="0,8,0,0">
+            <TextBlock x:Name="SelectionHint"
+                       Foreground="#666666"
+                       VerticalAlignment="Center"
+                       Visibility="Collapsed"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="DeleteButton"
+                        Content="{loc:Translate 删除}"
+                        Width="80" Padding="0,4" Margin="0,0,8,0"
+                        IsEnabled="False"
+                        Click="Delete_Click"/>
+                <Button Content="{loc:Translate 关闭}" Width="80" Padding="0,4" Click="Close_Click"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

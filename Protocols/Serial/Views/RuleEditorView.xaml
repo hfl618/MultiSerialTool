@@ -15,10 +15,10 @@
         <local:ClampWidthConverter x:Key="ClampWidth"/>
     </UserControl.Resources>
 
-    <!-- 窄窗口下整页纵向滚动；内容仍超出时横向滚动，避免控件被裁切 -->
+    <!-- 窄窗口下整页纵向滚动；横向不滚动，内容按视口宽度钳制并收缩 -->
     <ScrollViewer x:Name="PageRoot"
                   VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
                   Focusable="False">
     <dxlc:LayoutControl Orientation="Vertical" ItemSpace="10" Margin="8">
 
@@ -29,7 +29,9 @@
 
             <!-- 单行排布：路径列吃掉剩余宽度，其余列定宽，窄窗口下不折行 -->
             <dxlc:LayoutItem Label="{x:Null}">
-                <Grid Margin="0,2,0,10">
+                <Grid Margin="0,2,0,10"
+                      MaxWidth="{Binding ActualWidth, ElementName=PageRoot,
+                                        Converter={StaticResource ClampWidth}, ConverterParameter=64}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*" MinWidth="110"/>

@@ -28,4 +28,7 @@ public class DebugLogEntry
     /// <summary>UI 显示文本：有操作名时拼成“操作: 详情”</summary>
     public string DisplayText =>
         string.IsNullOrEmpty(Operation) ? Message : $"{Operation}: {Message}";
+
+    /// <summary>与日志文件行格式一致的单行文本，用于复制/导出（不含日期）</summary>
+    public string ToLine() => $"{Time:HH:mm:ss.fff} [{LevelText}/{Source}] {DisplayText}";
 }
