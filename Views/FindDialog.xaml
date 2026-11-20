@@ -7,6 +7,7 @@
         xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
         mc:Ignorable="d"
         Title="{loc:Translate 查找}"
+        Icon="/Assets/Icons/app.ico"
         Width="430" SizeToContent="Height"
         Topmost="True"
         ShowInTaskbar="False"

@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
 using MultiSerialTool.Shared;
+using MultiSerialTool.Shared.Find;
 using MultiSerialTool.ViewModels;
 using MultiSerialTool.Views;
 
@@ -46,6 +47,33 @@ namespace MultiSerialTool.Protocols.Serial
         /// <summary>纯文本视图当前订阅的日志集合（随设备切换重绑）</summary>
         private INotifyCollectionChanged? _plainLogSubscription;
 
+        /// <summary>列表视图自动滚动订阅的日志集合（随设备切换重绑）</summary>
+        private INotifyCollectionChanged? _logScrollSubscription;
+
+        /// <summary>已排队但尚未执行的自动滚动，首条日志到达时集合还来不及撑开高度</summary>
+        private bool _plainAutoScrollPending;
+        private bool _logAutoScrollPending;
+
+        /// <summary>纯文本视图中每条日志对应的段落，供查找定位滚动</summary>
+        private readonly Dictionary<LogEntry, System.Windows.Documents.Paragraph> _plainParagraphs = new();
+
+        /// <summary>上次渲染纯文本时使用的查找状态，用于判断是否需要重绘高亮</summary>
+        private string _plainRenderedQuery = string.Empty;
+        private FindMatchMode _plainRenderedMode = FindMatchMode.Contains;
+        private bool _plainRenderedMatchCase;
+        private bool _plainRenderedFilter;
+
+        private static readonly System.Windows.Media.Brush PlainHighlightBrush
+            = CreatePlainHighlightBrush();
+
+        private static System.Windows.Media.Brush CreatePlainHighlightBrush()
+        {
+            var brush = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0xFF, 0xE0, 0x2E));
+            brush.Freeze();
+            return brush;
+        }
+
         /// <summary>当前是否处于纯文本视图</summary>
         private bool IsPlainMode => PlainModeToggle.IsChecked == true;
 
@@ -60,39 +88,139 @@ namespace MultiSerialTool.Protocols.Serial
         {
             LogList.Visibility = Visibility.Visible;
             PlainLogBox.Visibility = Visibility.Collapsed;
-            PlainLogBox.Clear();
+            PlainLogBox.Document.Blocks.Clear();
+            _plainParagraphs.Clear();
         }
 
-        /// <summary>按当前 HEX/文本视图把当前设备全部日志重建为一段纯文本</summary>
+        /// <summary>
+        /// 按当前 HEX/文本视图把日志重建为纯文本文档：
+        /// 查找过滤生效时只保留命中项，查找关键字以底色标出。
+        /// </summary>
         private void RebuildPlainLog()
         {
             var vm = DataContext as SerialWorkspaceViewModel;
-            var sb = new System.Text.StringBuilder();
+            var doc = new System.Windows.Documents.FlowDocument
+            {
+                PagePadding = new Thickness(0)
+            };
+            _plainParagraphs.Clear();
+
+            string query = vm?.FindHighlightQuery ?? string.Empty;
+            FindMatchMode mode = vm?.FindHighlightMode ?? FindMatchMode.Contains;
+            bool matchCase = vm?.FindHighlightMatchCase ?? false;
+            bool filter = _findVm is { IsFilterMode: true };
 
             if (vm?.CurrentLogEntries is { } entries)
             {
                 foreach (var entry in entries)
-                    AppendEntryText(sb, entry, vm.IsHexDisplay);
+                {
+                    if (filter && _findVm is not null && !_findVm.Matches(entry))
+                        continue;
+                    AppendPlainLine(doc, entry, vm.IsHexDisplay, query, mode, matchCase);
+                }
             }
 
-            PlainLogBox.Text = sb.ToString();
+            _plainRenderedQuery = query;
+            _plainRenderedMode = mode;
+            _plainRenderedMatchCase = matchCase;
+            _plainRenderedFilter = filter;
+
+            PlainLogBox.Document = doc;
             PlainLogBox.ScrollToEnd();
+            // 文档刚替换时布局还没完成，同步滚动只能停在旧高度，再补一次布局后的滚动
+            Dispatcher.BeginInvoke(
+                new System.Action(() => PlainLogBox.ScrollToEnd()),
+                System.Windows.Threading.DispatcherPriority.Background);
         }
 
         /// <summary>新增日志追加到纯文本末尾；用户已向上翻看时不抢占滚动位置</summary>
         private void AppendPlainEntries(IEnumerable<LogEntry> entries, bool hex)
         {
-            var sb = new System.Text.StringBuilder();
+            var vm = DataContext as SerialWorkspaceViewModel;
+            string query = vm?.FindHighlightQuery ?? string.Empty;
+            FindMatchMode mode = vm?.FindHighlightMode ?? FindMatchMode.Contains;
+            bool matchCase = vm?.FindHighlightMatchCase ?? false;
+            bool filter = _findVm is { IsFilterMode: true };
+
+            bool atBottom = _plainAutoScrollPending || IsPlainBoxAtBottom();
+            bool appended = false;
+
             foreach (var entry in entries)
-                AppendEntryText(sb, entry, hex);
+            {
+                // 过滤态下新日志也必须先命中才显示，否则纯文本会“漏出”被过滤的行
+                if (filter && _findVm is not null && !_findVm.Matches(entry))
+                    continue;
 
-            if (sb.Length == 0)
-                return;
+                AppendPlainLine(PlainLogBox.Document, entry, hex, query, mode, matchCase);
+                appended = true;
+            }
 
-            bool atBottom = IsPlainBoxAtBottom();
-            PlainLogBox.AppendText(sb.ToString());
-            if (atBottom)
-                PlainLogBox.ScrollToEnd();
+            if (appended && atBottom)
+            {
+                // 追加后布局尚未更新，立即 ScrollToEnd 会停在旧的文档末尾
+                _plainAutoScrollPending = true;
+                Dispatcher.BeginInvoke(
+                    new System.Action(() =>
+                    {
+                        PlainLogBox.ScrollToEnd();
+                        _plainAutoScrollPending = false;
+                    }),
+                    System.Windows.Threading.DispatcherPriority.Background);
+            }
+        }
+
+        /// <summary>
+        /// 单条日志写入一行：与复制内容格式一致（[时间] 前缀 内容），
+        /// 内容中命中查找关键字的片段加底色。
+        /// </summary>
+        private void AppendPlainLine(
+            System.Windows.Documents.FlowDocument doc, LogEntry entry, bool hex,
+            string query, FindMatchMode mode, bool matchCase)
+        {
+            var paragraph = new System.Windows.Documents.Paragraph
+            {
+                Margin = new Thickness(0)
+            };
+            doc.Blocks.Add(paragraph);
+
+            string content = hex && entry.HexText is not null ? entry.HexText : entry.Text;
+            string prefix = $"[{entry.Time:yyyy-MM-dd HH:mm:ss}] {entry.Prefix} ";
+
+            var ranges = FindMatcher.FindRanges(content, query, mode, matchCase);
+            if (ranges.Count == 0)
+            {
+                paragraph.Inlines.Add(new System.Windows.Documents.Run(prefix + content));
+            }
+            else
+            {
+                paragraph.Inlines.Add(new System.Windows.Documents.Run(prefix));
+
+                int position = 0;
+                foreach (var range in ranges)
+                {
+                    if (range.Start > position)
+                    {
+                        paragraph.Inlines.Add(new System.Windows.Documents.Run(
+                            content.Substring(position, range.Start - position)));
+                    }
+
+                    paragraph.Inlines.Add(new System.Windows.Documents.Run(
+                        content.Substring(range.Start, range.Length))
+                    {
+                        Background = PlainHighlightBrush
+                    });
+
+                    position = range.Start + range.Length;
+                }
+
+                if (position < content.Length)
+                {
+                    paragraph.Inlines.Add(new System.Windows.Documents.Run(
+                        content.Substring(position)));
+                }
+            }
+
+            _plainParagraphs[entry] = paragraph;
         }
 
         /// <summary>单条日志的纯文本形式，与复制内容格式一致</summary>
@@ -106,6 +234,44 @@ namespace MultiSerialTool.Protocols.Serial
         private bool IsPlainBoxAtBottom()
         {
             var scroll = FindVisualChild<System.Windows.Controls.ScrollViewer>(PlainLogBox);
+            return scroll is null
+                || scroll.VerticalOffset + scroll.ViewportHeight >= scroll.ExtentHeight - 1;
+        }
+
+        /// <summary>订阅列表视图的日志追加，新增时滚到底部</summary>
+        private void BindLogScrollSubscription()
+        {
+            if (_logScrollSubscription is not null)
+                _logScrollSubscription.CollectionChanged -= OnLogScrollCollectionChanged;
+
+            _logScrollSubscription = (DataContext as SerialWorkspaceViewModel)?.CurrentLogEntries;
+
+            if (_logScrollSubscription is not null)
+                _logScrollSubscription.CollectionChanged += OnLogScrollCollectionChanged;
+        }
+
+        private void OnLogScrollCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems is null)
+                return;
+            if (IsPlainMode || !(_logAutoScrollPending || IsLogListAtBottom()))
+                return;
+
+            // 与纯文本一致：等条目容器生成后再滚动，否则最后一条还没进入视图
+            _logAutoScrollPending = true;
+            Dispatcher.BeginInvoke(
+                new System.Action(() =>
+                {
+                    if (LogList.Items.Count > 0)
+                        LogList.ScrollIntoView(LogList.Items[^1]);
+                    _logAutoScrollPending = false;
+                }),
+                System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        private bool IsLogListAtBottom()
+        {
+            var scroll = FindVisualChild<System.Windows.Controls.ScrollViewer>(LogList);
             return scroll is null
                 || scroll.VerticalOffset + scroll.ViewportHeight >= scroll.ExtentHeight - 1;
         }
@@ -342,6 +508,10 @@ namespace MultiSerialTool.Protocols.Serial
 
             _findDialog = null;
             _findVm = null;
+
+            // 关闭弹窗后清掉纯文本视图里的高亮与过滤残留
+            if (IsPlainMode)
+                RebuildPlainLog();
         }
 
         /// <summary>
@@ -358,11 +528,21 @@ namespace MultiSerialTool.Protocols.Serial
                 : entry.Text;
         }
 
-        /// <summary>命中定位：选中并滚动到目标日志项</summary>
+        /// <summary>命中定位：列表模式选中并滚动；纯文本模式滚动到对应行</summary>
         private void LocateItem(object? item)
         {
             if (item is null)
                 return;
+
+            if (IsPlainMode)
+            {
+                if (item is LogEntry entry
+                    && _plainParagraphs.TryGetValue(entry, out var paragraph))
+                {
+                    paragraph.BringIntoView();
+                }
+                return;
+            }
 
             LogList.SelectedItem = item;
             LogList.UpdateLayout();
@@ -398,6 +578,16 @@ namespace MultiSerialTool.Protocols.Serial
                 workspace.FindHighlightQuery = _findVm.Keyword;
                 workspace.FindHighlightMode = _findVm.Mode;
                 workspace.FindHighlightMatchCase = _findVm.MatchCase;
+
+                // 纯文本视图不经过 ListBox 模板，查找状态变化时需按新关键字重绘高亮与过滤
+                if (IsPlainMode
+                    && (_plainRenderedQuery != _findVm.Keyword
+                        || _plainRenderedMode != _findVm.Mode
+                        || _plainRenderedMatchCase != _findVm.MatchCase
+                        || _plainRenderedFilter != _findVm.IsFilterMode))
+                {
+                    RebuildPlainLog();
+                }
             }
         }
 
@@ -435,6 +625,7 @@ namespace MultiSerialTool.Protocols.Serial
                 newVm.PropertyChanged += OnWorkspacePropertyChanged;
 
             BindPlainLogSubscription();
+            BindLogScrollSubscription();
             if (IsPlainMode)
                 RebuildPlainLog();
         }
@@ -456,6 +647,7 @@ namespace MultiSerialTool.Protocols.Serial
                 return;
 
             BindPlainLogSubscription();
+            BindLogScrollSubscription();
             if (IsPlainMode)
                 RebuildPlainLog();
 

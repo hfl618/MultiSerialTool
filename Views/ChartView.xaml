@@ -68,9 +68,9 @@
             </StackPanel>
         </Border>
 
-        <!-- ========== 粘贴输入区（可折叠，默认带模板样例） ========== -->
+        <!-- ========== 粘贴输入区（可折叠，默认收缩） ========== -->
         <Expander DockPanel.Dock="Top" Header="{loc:Translate 粘贴日志}"
-                  IsExpanded="True" Background="#FFFFFF"
+                  IsExpanded="False" Background="#FFFFFF"
                   BorderBrush="#CCCCCC" BorderThickness="1" Margin="0,6,0,0">
             <TextBox x:Name="PasteBox" Height="130" AcceptsReturn="True" TextWrapping="NoWrap"
                      VerticalScrollBarVisibility="Auto"

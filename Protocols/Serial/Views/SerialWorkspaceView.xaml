@@ -234,20 +234,22 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <!-- 纯文本视图：只读文本框，支持任意字符选中与 Ctrl+C -->
-                <TextBox x:Name="PlainLogBox"
-                         Visibility="Collapsed"
-                         IsReadOnly="True"
-                         IsReadOnlyCaretVisible="True"
-                         TextWrapping="Wrap"
-                         AcceptsReturn="True"
-                         Background="#E8E8E8"
-                         BorderBrush="#CCCCCC"
-                         BorderThickness="1"
-                         FontSize="13"
-                         FontFamily="Consolas"
-                         VerticalScrollBarVisibility="Auto"
-                         PreviewMouseWheel="LogList_PreviewMouseWheel"/>
+                <!-- 纯文本视图：只读文档，支持任意字符选中与 Ctrl+C，并承载查找高亮 -->
+                <RichTextBox x:Name="PlainLogBox"
+                             Visibility="Collapsed"
+                             IsReadOnly="True"
+                             IsReadOnlyCaretVisible="True"
+                             IsDocumentEnabled="False"
+                             IsUndoEnabled="False"
+                             Background="#E8E8E8"
+                             BorderBrush="#CCCCCC"
+                             BorderThickness="1"
+                             Padding="4,2"
+                             FontSize="13"
+                             FontFamily="Consolas"
+                             HorizontalScrollBarVisibility="Disabled"
+                             VerticalScrollBarVisibility="Auto"
+                             PreviewMouseWheel="LogList_PreviewMouseWheel"/>
                 </Grid>
 
             </DockPanel>

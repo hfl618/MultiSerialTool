@@ -15,8 +15,8 @@ public class WorkspaceState
     /// <summary>HEX 显示开关</summary>
     public bool IsHexDisplay { get; set; } = true;
 
-    /// <summary>左侧侧边栏是否展开（默认收缩）</summary>
-    public bool SidePaneOpen { get; set; } = false;
+    /// <summary>左侧侧边栏是否展开（默认展开）</summary>
+    public bool SidePaneOpen { get; set; } = true;
 
     /// <summary>侧边栏宽度</summary>
     public double SidePaneWidth { get; set; } = 240;

@@ -6,6 +6,7 @@
         xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
         mc:Ignorable="d"
         Title="{loc:Translate 导出历史}"
+        Icon="/Assets/Icons/app.ico"
         Width="900" Height="460"
         MinWidth="640" MinHeight="300"
         ShowInTaskbar="False"

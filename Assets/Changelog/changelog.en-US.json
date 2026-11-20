@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.0.8",
+    "date": "2026-11-20",
+    "notes": [
+      "Added an application icon: the main window, About, Export History, Find, New Command and Scope windows now all show the same icon",
+      "The executable and the setup package carry the same icon, so Explorer, the taskbar and Apps & Features identify the app at a glance",
+      "Fixed the log not scrolling automatically: both the row list and the plain-text view scroll to the newest entry, and still stay put while you scroll back through history"
+    ]
+  },
+  {
     "version": "1.0.7",
     "date": "2026-11-20",
     "notes": [

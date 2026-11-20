@@ -16,6 +16,8 @@
     <Product>MultiSerialTool-$(Version)-hfl</Product>
     <AssemblyTitle>MultiSerialTool-$(Version)-hfl</AssemblyTitle>
     <Company>hfl</Company>
+    <!-- 应用图标：嵌入 exe，资源管理器与任务栏直接显示 -->
+    <ApplicationIcon>Assets\Icons\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- Tests 是独立子项目，其源码与 obj 下自动生成的 AssemblyInfo 不得被主项目默认 glob 编译，否则 CS0579 重复特性 -->
@@ -41,6 +43,7 @@
 
   <ItemGroup>
     <Resource Include="Assets\Icons\*.svg" />
+    <Resource Include="Assets\Icons\app.ico" />
     <!-- 语言包作为静态资源嵌入程序集，运行时通过 pack URI 读取，不依赖外部文件 -->
     <Resource Include="Assets\Languages\*.json" />
   </ItemGroup>

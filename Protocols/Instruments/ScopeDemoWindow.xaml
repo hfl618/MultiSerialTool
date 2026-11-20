@@ -9,6 +9,7 @@
         xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
 
         Title="MDO3024 示波器实时采集 - DevExpress + ScottPlot"
+        Icon="/Assets/Icons/app.ico"
         Width="1280" Height="820"
         WindowStartupLocation="CenterScreen">
  

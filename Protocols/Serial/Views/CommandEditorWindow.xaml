@@ -7,6 +7,7 @@
         xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
         mc:Ignorable="d"
         Title="{loc:Translate 新增自定义命令}"
+        Icon="/Assets/Icons/app.ico"
         Width="400" SizeToContent="Height"
         ShowInTaskbar="False" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"

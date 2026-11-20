@@ -15,7 +15,7 @@
         xmlns:loc="clr-namespace:MultiSerialTool.Models.Localization"
         x:Class="MultiSerialTool.Views.MainWindow"
         mc:Ignorable="d"
-        Title="MultiSerialTool" Height="450" Width="800"
+        Title="MultiSerialTool" Icon="/Assets/Icons/app.ico" Height="450" Width="800"
         MinWidth="800" MinHeight="450"
         Background="#F5F5F5" Foreground="#222222">
 

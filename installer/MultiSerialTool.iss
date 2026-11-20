@@ -25,8 +25,8 @@ DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir={#OutputDir}
 OutputBaseFilename=Setup_MultiSerialTool_{#AppVersion}
-; 暂无 ico 资源，使用默认图标；将 app.ico 放入 Assets\Icons 后取消下一行注释即可
-; SetupIconFile=..\Assets\Icons\app.ico
+; 安装包图标与卸载项图标统一使用程序 ico
+SetupIconFile=..\Assets\Icons\app.ico
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=lowest
