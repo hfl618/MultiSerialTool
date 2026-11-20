@@ -214,17 +214,17 @@ public class SerialWorkspaceViewModel : ViewModelBase
     /// <summary>手动刷新字段请求：参数为字段 Key，由外层 VM 下发查询</summary>
     public event Action<string>? FieldRequested;
 
-    /// <summary>快捷发送运行态集合（侧边栏按钮绑定）</summary>
-    public ObservableCollection<QuickSendRuntime> QuickSendItems { get; } = new();
-
-    /// <summary>当前规则的自动应答项（侧边栏简写区绑定）</summary>
-    public ObservableCollection<AutoReplyRule> AutoReplyItems { get; } = new();
-
     /// <summary>统一命令列表（侧边栏单列表绑定，不再区分快捷/自动）</summary>
     public ObservableCollection<CommandRule> CommandItems { get; } = new();
 
     /// <summary>断言调度器</summary>
     private readonly ExpectationRunner _expectationRunner = new();
+
+    /// <summary>学习应答的等待窗口（毫秒）：发出命令后多久内的首个接收组算作该命令的应答</summary>
+    private const int LearnReplyTimeoutMs = 3000;
+
+    /// <summary>待学习的一次命令发送（命令名、实际发出帧、发送时刻）</summary>
+    private (string Name, string Frame, DateTime At)? _pendingLearn;
 
     /// <summary>发送命令</summary>
     public RelayCommand SendCommand { get; }
@@ -232,29 +232,29 @@ public class SerialWorkspaceViewModel : ViewModelBase
     /// <summary>清空当前设备日志</summary>
     public RelayCommand ClearLogCommand { get; }
 
-    /// <summary>快捷发送点击命令，参数为 QuickSendRuntime</summary>
-    public RelayCommand<QuickSendRuntime> QuickSendCommand { get; }
-
     /// <summary>侧边栏命令点击：发送该命令并启动断言，参数为 CommandRule</summary>
     public RelayCommand<CommandRule> CommandClickCommand { get; }
 
     /// <summary>新增一条命令（侧边栏 +）</summary>
     public RelayCommand AddCommandItemCommand { get; }
 
-    /// <summary>删除最后一条命令（侧边栏 -）</summary>
-    public RelayCommand RemoveCommandItemCommand { get; }
+    /// <summary>删除选中的命令（侧边栏 − 与右键菜单）</summary>
+    public RelayCommand DeleteSelectedCommand { get; }
+
+    /// <summary>编辑选中的唯一一条命令（右键菜单）</summary>
+    public RelayCommand EditSelectedCommand { get; }
+
+    /// <summary>上移选中的命令块（右键菜单）</summary>
+    public RelayCommand MoveSelectedUpCommand { get; }
+
+    /// <summary>下移选中的命令块（右键菜单）</summary>
+    public RelayCommand MoveSelectedDownCommand { get; }
 
     /// <summary>上移指定命令（行内 ↑），参数为 CommandRule</summary>
     public RelayCommand<CommandRule> MoveCommandItemUpCommand { get; }
 
     /// <summary>下移指定命令（行内 ↓），参数为 CommandRule</summary>
     public RelayCommand<CommandRule> MoveCommandItemDownCommand { get; }
-
-    /// <summary>自动回复手动触发命令（把该规则的 command 发出）</summary>
-    public RelayCommand<AutoReplyRule> FireAutoReplyCommand { get; }
-
-    /// <summary>自动应答启用切换后立即持久化</summary>
-    public RelayCommand<AutoReplyRule> ToggleAutoReplyEnabledCommand { get; }
 
     /// <summary>
     /// 单字段刷新命令：参数为被点击的字段定义。
@@ -292,11 +292,16 @@ public class SerialWorkspaceViewModel : ViewModelBase
         RefreshFieldCommand = new RelayCommand<DeviceField>(RefreshField);
         RefreshRowCommand = new RelayCommand<FieldValueRow>(
             row => { if (row is not null) FieldRequested?.Invoke(row.Key); });
-        QuickSendCommand = new RelayCommand<QuickSendRuntime>(ExecuteQuickSend);
         CommandClickCommand = new RelayCommand<CommandRule>(ExecuteCommand);
         AddCommandItemCommand = new RelayCommand(AddCommandItem);
-        RemoveCommandItemCommand = new RelayCommand(RemoveCommandItem,
-            () => CommandItems.Count > 0);
+        DeleteSelectedCommand = new RelayCommand(DeleteSelected,
+            () => SelectedCommandCount > 0);
+        EditSelectedCommand = new RelayCommand(EditSelected,
+            () => SelectedCommandCount == 1);
+        MoveSelectedUpCommand = new RelayCommand(() => MoveSelected(-1),
+            () => CanMoveSelected(-1));
+        MoveSelectedDownCommand = new RelayCommand(() => MoveSelected(1),
+            () => CanMoveSelected(1));
         MoveCommandItemUpCommand = new RelayCommand<CommandRule>(
             cmd => MoveCommandItem(cmd, -1),
             cmd => cmd is not null && CommandItems.IndexOf(cmd) > 0);
@@ -307,8 +312,6 @@ public class SerialWorkspaceViewModel : ViewModelBase
                 var i = cmd is null ? -1 : CommandItems.IndexOf(cmd);
                 return i >= 0 && i < CommandItems.Count - 1;
             });
-        FireAutoReplyCommand = new RelayCommand<AutoReplyRule>(FireAutoReply);
-        ToggleAutoReplyEnabledCommand = new RelayCommand<AutoReplyRule>(PersistAutoReplyToggle);
         TogglePaneCommand = new RelayCommand(() => SidePaneOpen = !SidePaneOpen);
         BuildPlaceholderLayout();
 
@@ -355,8 +358,6 @@ public class SerialWorkspaceViewModel : ViewModelBase
         foreach (var existing in CommandItems)
             existing.PropertyChanged -= OnCommandItemPropertyChanged;
         CommandItems.Clear();
-        QuickSendItems.Clear();
-        AutoReplyItems.Clear();
 
         var rule = RuleSessionService.Current.CurrentRule;
         if (rule is null)
@@ -364,16 +365,13 @@ public class SerialWorkspaceViewModel : ViewModelBase
 
         foreach (var cmd in rule.Commands)
         {
+            cmd.IsSelected = false;
             cmd.PropertyChanged += OnCommandItemPropertyChanged;
             CommandItems.Add(cmd);
         }
 
-        // 兼容旧集合（阶段3 清理）
-        foreach (var quick in rule.QuickSends)
-            QuickSendItems.Add(new QuickSendRuntime(quick));
-        foreach (var reply in rule.AutoReplies)
-            AutoReplyItems.Add(reply);
-
+        _selectionAnchor = null;
+        RefreshSelectionCanExecute();
         RestoreResultsForDevice();
     }
 
@@ -404,20 +402,147 @@ public class SerialWorkspaceViewModel : ViewModelBase
         cmd.PropertyChanged += OnCommandItemPropertyChanged;
         CommandItems.Add(cmd);
         PersistCommands();
+        SelectOnly(cmd);
     }
 
-    /// <summary>删除最后一条命令，重排序号并持久化</summary>
-    private void RemoveCommandItem()
+    /// <summary>右键 / Ctrl+单击 / Shift+单击的选中锚点</summary>
+    private CommandRule? _selectionAnchor;
+
+    /// <summary>当前选中的命令条数</summary>
+    public int SelectedCommandCount => CommandItems.Count(c => c.IsSelected);
+
+    /// <summary>右键某行：未选中时只选它；已在多选中则保留多选，便于批量操作</summary>
+    public void SelectOnly(CommandRule? cmd)
     {
-        if (CommandItems.Count == 0)
+        if (cmd is null)
+            return;
+        if (cmd.IsSelected && SelectedCommandCount > 1)
             return;
 
-        var cmd = CommandItems[^1];
-        cmd.PropertyChanged -= OnCommandItemPropertyChanged;
-        RuleSessionService.Current.CurrentRule?.Commands.Remove(cmd);
-        CommandItems.RemoveAt(CommandItems.Count - 1);
+        foreach (var item in CommandItems)
+            item.IsSelected = ReferenceEquals(item, cmd);
+        _selectionAnchor = cmd;
+        RefreshSelectionCanExecute();
+    }
+
+    /// <summary>Ctrl+单击某行：切换该行选中，不发送</summary>
+    public void ToggleSelection(CommandRule? cmd)
+    {
+        if (cmd is null)
+            return;
+
+        cmd.IsSelected = !cmd.IsSelected;
+        _selectionAnchor = cmd;
+        RefreshSelectionCanExecute();
+    }
+
+    /// <summary>Shift+单击某行：从锚点到该行连选，不发送</summary>
+    public void ExtendSelection(CommandRule? cmd)
+    {
+        if (cmd is null)
+            return;
+
+        var to = CommandItems.IndexOf(cmd);
+        if (to < 0)
+            return;
+
+        var from = _selectionAnchor is null ? to : CommandItems.IndexOf(_selectionAnchor);
+        if (from < 0)
+            from = to;
+
+        var lo = Math.Min(from, to);
+        var hi = Math.Max(from, to);
+        for (var i = 0; i < CommandItems.Count; i++)
+            CommandItems[i].IsSelected = i >= lo && i <= hi;
+
+        _selectionAnchor = cmd;
+        RefreshSelectionCanExecute();
+    }
+
+    private void ClearSelection()
+    {
+        foreach (var item in CommandItems)
+            item.IsSelected = false;
+        _selectionAnchor = null;
+        RefreshSelectionCanExecute();
+    }
+
+    private void RefreshSelectionCanExecute() =>
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+
+    private List<CommandRule> SelectedCommands() =>
+        CommandItems.Where(c => c.IsSelected).ToList();
+
+    /// <summary>删除选中的全部命令，重排序号并持久化</summary>
+    private void DeleteSelected()
+    {
+        var targets = SelectedCommands();
+        if (targets.Count == 0)
+            return;
+
+        var rule = RuleSessionService.Current.CurrentRule;
+        foreach (var cmd in targets)
+        {
+            cmd.PropertyChanged -= OnCommandItemPropertyChanged;
+            rule?.Commands.Remove(cmd);
+            CommandItems.Remove(cmd);
+        }
+
+        _selectionAnchor = null;
         RenumberCommands();
         PersistCommands();
+        RefreshSelectionCanExecute();
+    }
+
+    /// <summary>编辑选中的唯一一条命令：弹窗预填，确定后回写实例并持久化</summary>
+    private void EditSelected()
+    {
+        var cmd = SelectedCommands().FirstOrDefault();
+        if (cmd is null)
+            return;
+
+        var editor = new CommandEditorWindow(cmd)
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+        if (editor.ShowDialog() == true)
+            PersistCommands();
+    }
+
+    /// <summary>整块上移(-1)/下移(+1)选中命令，保持相对顺序</summary>
+    private void MoveSelected(int delta)
+    {
+        var targets = SelectedCommands();
+        if (targets.Count == 0)
+            return;
+
+        // 上移时从上往下让位、下移时从下往上，且跳过相邻的已选项，整块才会整体挪动
+        foreach (var cmd in delta < 0 ? targets : Enumerable.Reverse(targets))
+        {
+            var i = CommandItems.IndexOf(cmd);
+            var neighbor = i + delta;
+            if (i < 0 || neighbor < 0 || neighbor >= CommandItems.Count
+                || CommandItems[neighbor].IsSelected)
+                continue;
+            MoveCommandItem(cmd, delta);
+        }
+
+        RefreshSelectionCanExecute();
+    }
+
+    /// <summary>选区整体还能否再移动一格</summary>
+    private bool CanMoveSelected(int delta)
+    {
+        foreach (var cmd in SelectedCommands())
+        {
+            var i = CommandItems.IndexOf(cmd);
+            var neighbor = i + delta;
+            if (i < 0 || neighbor < 0 || neighbor >= CommandItems.Count
+                || CommandItems[neighbor].IsSelected)
+                continue;
+            return true;
+        }
+        return false;
     }
 
     /// <summary>按 delta 上移(-1)/下移(+1)指定命令，重排序号并持久化</summary>
@@ -453,7 +578,7 @@ public class SerialWorkspaceViewModel : ViewModelBase
             CommandItems[i].Index = i + 1;
     }
 
-    /// <summary>把当前规则（含统一命令）写入覆盖层，并同步旧字段供现有引擎使用</summary>
+    /// <summary>把当前规则（统一命令）写入覆盖层</summary>
     private void PersistCommands()
     {
         var name = RuleSessionService.Current.CurrentName;
@@ -461,8 +586,8 @@ public class SerialWorkspaceViewModel : ViewModelBase
         if (name is null || rule is null)
             return;
 
-        RuleMigration.BackfillLegacy(rule);
         RuleStore.Save(name, rule);
+        RuleEditor.RefreshAutoReplies();
     }
 
     /// <summary>点击侧边栏命令：组装帧 → 统一发送 → 启动断言等待</summary>
@@ -480,45 +605,37 @@ public class SerialWorkspaceViewModel : ViewModelBase
         TxSubmitted?.Invoke(isHex ? SerialTxPayload.FromHex(frame) : SerialTxPayload.FromText(frame));
         if (cmd.Expect is not null)
             _expectationRunner.Start(cmd);
+
+        // 学习模式：记录本次发送，等设备返回的首个接收组录成自动应答
+        if (RuleEditor.LearnMode)
+            _pendingLearn = (cmd.Name, frame, DateTime.Now);
     }
 
-    /// <summary>点击快捷发送：组装帧 → 走统一发送链路 → 启动断言等待</summary>
-    private void ExecuteQuickSend(QuickSendRuntime? runtime)
+    /// <summary>学习模式：接收组到达时把设备返回帧录成刚发出命令的自动应答</summary>
+    public void TryLearnReply(SerialDeviceInfo device, string hex)
     {
-        if (runtime is null || _device is null)
+        if (!RuleEditor.LearnMode || _pendingLearn is null)
+            return;
+        if (_device is null || !ReferenceEquals(device, _device))
             return;
 
-        TestSessionService.Current.BeginTest(_device, runtime.Rule.Name);
-        var frame = BuildFrame(runtime.Rule);
-        if (string.IsNullOrEmpty(frame))
+        var pending = _pendingLearn.Value;
+        if ((DateTime.Now - pending.At).TotalMilliseconds > LearnReplyTimeoutMs)
+        {
+            _pendingLearn = null;
             return;
+        }
 
-        bool isHex = string.Equals(runtime.Rule.Format, "hex", StringComparison.OrdinalIgnoreCase);
-        TxSubmitted?.Invoke(isHex ? SerialTxPayload.FromHex(frame) : SerialTxPayload.FromText(frame));
-        if (runtime.Rule.Expect is not null)
-            _expectationRunner.Start(runtime);
-    }
-
-    /// <summary>手动触发自动回复规则的 command（验证对端设备）</summary>
-    private void FireAutoReply(AutoReplyRule? rule)
-    {
-        if (rule is null || _device is null)
-            return;
-
-        var frame = Crc16.ReplacePlaceholder(FrameMatcher.NormalizeHex(rule.Command));
-        TxSubmitted?.Invoke(SerialTxPayload.FromHex(frame));
-    }
-
-    /// <summary>简写区切换启用状态：立即持久化规则覆盖层</summary>
-    private void PersistAutoReplyToggle(AutoReplyRule? rule)
-    {
-        if (rule is null)
-            return;
-
-        var name = RuleSessionService.Current.CurrentName;
-        var current = RuleSessionService.Current.CurrentRule;
-        if (name is not null && current is not null)
-            RuleStore.Save(name, current);
+        _pendingLearn = null;
+        if (RuleEditor.RecordLearnedReply(pending.Name, pending.Frame, hex))
+        {
+            device.LogEntries.Add(new LogEntry
+            {
+                Time = DateTime.Now,
+                IsTx = false,
+                Text = $"[学习] 已录为自动应答：{pending.Name}"
+            });
+        }
     }
 
     /// <summary>
@@ -607,23 +724,6 @@ public class SerialWorkspaceViewModel : ViewModelBase
         }
 
         return Crc16.ReplacePlaceholder(FrameMatcher.NormalizeHex(cmd.TxFrame));
-    }
-
-    /// <summary>组装待发送帧：HEX 走 CRC 占位替换，ASCII 追加换行后缀</summary>
-    private static string BuildFrame(QuickSendRule rule)
-    {
-        if (string.Equals(rule.Format, "ascii", StringComparison.OrdinalIgnoreCase))
-        {
-            return rule.Append.ToLowerInvariant() switch
-            {
-                "crlf" => rule.Frame + "\r\n",
-                "lf" => rule.Frame + "\n",
-                "crc" => rule.Frame + "\r",
-                _ => rule.Frame
-            };
-        }
-
-        return Crc16.ReplacePlaceholder(FrameMatcher.NormalizeHex(rule.Frame));
     }
 
     /// <summary>单字段刷新：把字段 Key 交给外层 VM 下发查询帧</summary>

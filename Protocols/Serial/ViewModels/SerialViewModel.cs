@@ -43,6 +43,14 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
     /// <summary>当前活动端口（字段刷新请求按此定位引擎）</summary>
     private string? _activePort;
 
+    /// <summary>规则下拉选项（与规则页共用同一集合，首项为“无规则”）</summary>
+    public ObservableCollection<string> RuleTypeOptions => _workspace.RuleEditor.DeviceTypeOptions;
+
+    /// <summary>旧版全局规则选择：首次运行新版时回填到各端口绑定，避免升级后全部无规则</summary>
+    private readonly string? _legacyDefaultRule = PortRuleStore.Exists
+        ? null
+        : WorkspaceState.Load().SelectedDeviceType;
+
     /// <summary>端口刷新是否在进行中（后台 WMI 查询期间不重入）</summary>
     private bool _refreshing;
 
@@ -74,17 +82,11 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
         get => _selectedDevice;
         set
         {
-            if (_selectedDevice is not null)
-                _selectedDevice.PropertyChanged -= OnDevicePropertyChanged;
-
             if (SetProperty(ref _selectedDevice, value))
             {
                 _workspace.Device = value;
                 CurrentDeviceService.Current.Publish(value);
             }
-
-            if (_selectedDevice is not null)
-                _selectedDevice.PropertyChanged += OnDevicePropertyChanged;
 
             RaisePropertyChanged(nameof(ToggleText));
         }
@@ -116,6 +118,9 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
 
         // 语言切换时刷新动态文本（异常保护，避免通知失败影响其他订阅者）
         LocalizationService.Instance.PropertyChanged += OnLanguageChanged;
+
+        // 规则实例被整体替换（恢复出厂/导入替换）时，绑定同名规则的端口重新挂载
+        DeviceRuleCache.Replaced += OnRuleReplaced;
 
         // 去抖 500ms：WMI 事件在后台线程到达，封送到 UI 线程后重启定时器
         _debounceTimer = new DispatcherTimer(DispatcherPriority.Background)
@@ -377,11 +382,10 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
         grouper.GroupCompleted += group => OnGroupCompleted(device, version, group);
         _groupers[device.Name] = grouper;
 
-        // 规则执行引擎：规则切换自动跟随，待发帧写回本连接
+        // 规则执行引擎：按本端口绑定的规则工作，待发帧写回本连接
         var engine = new RuleExecutionEngine();
-        engine.UpdateRule(RuleSessionService.Current.CurrentRule);
+        engine.UpdateRule(DeviceRuleCache.Get(device.RuleName));
         engine.FrameReady += frameHex => OnEngineFrameReady(device, version, frameHex);
-        RuleSessionService.Current.RuleChanged += engine.OnRuleChanged;
         _engines[device.Name] = engine;
 
         // 工作区字段区绑定到该引擎，并登记为活动端口
@@ -561,6 +565,9 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
         // 执行引擎：offset 解析取主帧字节，regex 解析取合并文本；应答经 FrameReady 回调写出
         engine.ProcessRx(group.PrimaryBytes, group.CombinedHex, group.CombinedText);
 
+        // 学习模式：本端口刚发出的命令，其返回帧录成自动应答
+        _workspace.TryLearnReply(device, group.CombinedHex);
+
         if (engine.ParsedValues.TryGetValue("device_code", out var deviceCode) && deviceCode is not null)
             TestSessionService.Current.UpdateDeviceId(device, deviceCode.Value.ToString("0"));
 
@@ -642,13 +649,12 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
             dispatcher.BeginInvoke(action);
     }
 
-    /// <summary>移除并解绑规则执行引擎</summary>
+    /// <summary>移除规则执行引擎</summary>
     private void RemoveEngine(string portName)
     {
-        if (!_engines.Remove(portName, out var engine))
+        if (!_engines.Remove(portName, out _))
             return;
 
-        RuleSessionService.Current.RuleChanged -= engine.OnRuleChanged;
         if (_activePort == portName)
             _activePort = null;
     }
@@ -681,10 +687,11 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
             return;
         }
 
-        var rule = RuleSessionService.Current.CurrentRule;
+        var activeDevice = Devices.FirstOrDefault(d => d.Name == _activePort);
+        var rule = DeviceRuleCache.Get(activeDevice?.RuleName);
         if (rule is null)
         {
-            LogService.Current.Warn("Production", "未加载设备规则，无法保存记录");
+            LogService.Current.Warn("Production", "活动端口未绑定设备规则，无法保存记录");
             return;
         }
 
@@ -890,7 +897,7 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
         }
     }
 
-    private static SerialDeviceInfo CreateDevice(string port, SerialPortDescriptor? descriptor)
+    private SerialDeviceInfo CreateDevice(string port, SerialPortDescriptor? descriptor)
     {
         var device = new SerialDeviceInfo
         {
@@ -908,15 +915,58 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
             State = DeviceState.Disconnected
         };
 
+        // 端口规则绑定：首次升级沿用旧版全局选择并立即落盘，之后各端口独立
+        string key = DeviceKeyProvider.GetKey(device);
+        string? bound = PortRuleStore.Load(key);
+        if (bound is null && !string.IsNullOrWhiteSpace(_legacyDefaultRule))
+        {
+            bound = _legacyDefaultRule;
+            PortRuleStore.Save(key, bound);
+        }
+        device.RuleName = bound ?? string.Empty;
+        device.PropertyChanged += OnDevicePropertyChanged;
+
         // 绑定设备缓存：恢复该设备上次的草稿与发送历史
-        device.Composer.Attach(DeviceKeyProvider.GetKey(device));
+        device.Composer.Attach(key);
         return device;
     }
 
     private void OnDevicePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(SerialDeviceInfo.State))
+        if (sender is not SerialDeviceInfo device)
+            return;
+
+        if (e.PropertyName == nameof(SerialDeviceInfo.RuleName))
+        {
+            PortRuleStore.Save(DeviceKeyProvider.GetKey(device), device.RuleName);
+
+            var rule = DeviceRuleCache.Get(device.RuleName);
+            if (_engines.TryGetValue(device.Name, out var engine))
+                engine.UpdateRule(rule);
+            if (ReferenceEquals(device, _selectedDevice))
+                RuleSessionService.Current.Publish(device.RuleName, rule);
+        }
+        else if (e.PropertyName == nameof(SerialDeviceInfo.State)
+                 && ReferenceEquals(device, _selectedDevice))
+        {
             RaisePropertyChanged(nameof(ToggleText));
+        }
+    }
+
+    /// <summary>规则实例被整体替换：绑定同名规则的端口换到新实例</summary>
+    private void OnRuleReplaced(string name)
+    {
+        var rule = DeviceRuleCache.Get(name);
+        foreach (var device in Devices)
+        {
+            if (!string.Equals(device.RuleName, name, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (_engines.TryGetValue(device.Name, out var engine))
+                engine.UpdateRule(rule);
+            if (ReferenceEquals(device, _selectedDevice))
+                RuleSessionService.Current.Publish(name, rule);
+        }
     }
 
     /// <summary>
@@ -928,6 +978,7 @@ public class SerialViewModel : ProtocolViewModelBase, IDisposable
         _debounceTimer.Stop();
         _deviceWatcher.DeviceChanged -= OnDeviceChanged;
         _deviceWatcher.Dispose();
+        DeviceRuleCache.Replaced -= OnRuleReplaced;
 
         foreach (var framer in _frasers.Values)
             framer.Dispose();

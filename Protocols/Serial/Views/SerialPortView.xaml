@@ -9,6 +9,11 @@
              d:DesignHeight="450" d:DesignWidth="800">
     <UserControl.Resources>
         <loc:LocConverter x:Key="LocConverter"/>
+        <!-- DataGridCell 默认模板不响应 Padding，列内边距改在 TextBlock 上给 -->
+        <Style x:Key="CellText" TargetType="TextBlock">
+            <Setter Property="Margin" Value="6,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
     </UserControl.Resources>
 
     <DockPanel Margin="8">
@@ -25,7 +30,9 @@
                   HorizontalScrollBarVisibility="Auto"
                   VerticalScrollBarVisibility="Auto"
                   GridLinesVisibility="All"
-                  HeadersVisibility="Column">
+                  HeadersVisibility="Column"
+                  RowHeight="20">
+            <!-- 行高固定：否则“规则”列的 ComboBox 会把整行撑高，纯文字列看起来行距过大 -->
 
             <!-- 双击行：连接/断开切换 -->
             <DataGrid.InputBindings>
@@ -47,10 +54,25 @@
             </DataGrid.ContextMenu>
 
             <DataGrid.Columns>
-                <DataGridTextColumn Header="{loc:Translate 串口名字}" Binding="{Binding Name}"                    Width="150" MinWidth="80"/>
-                <DataGridTextColumn Header="{loc:Translate 类型}"     Binding="{Binding Type}"                    Width="100" MinWidth="80"/>
-                <DataGridTextColumn Header="{loc:Translate 地址}"     Binding="{Binding Address, Converter={StaticResource LocConverter}}" Width="180" MinWidth="100"/>
-                <DataGridTextColumn Header="{loc:Translate 波特率}" Binding="{Binding BaudRate}"                Width="100" MinWidth="80"/>
+                <DataGridTextColumn Header="{loc:Translate 串口名字}" Binding="{Binding Name}"                    Width="150" MinWidth="80" ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="{loc:Translate 类型}"     Binding="{Binding Type}"                    Width="100" MinWidth="80" ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="{loc:Translate 地址}"     Binding="{Binding Address, Converter={StaticResource LocConverter}}" Width="180" MinWidth="100" ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="{loc:Translate 波特率}" Binding="{Binding BaudRate}"                Width="100" MinWidth="80" ElementStyle="{StaticResource CellText}"/>
+
+                <!-- 端口规则绑定：每个端口独立选择设备规则，未选择表示不解析、不应答 -->
+                <DataGridTemplateColumn Header="{loc:Translate 规则}"
+                                        Width="150" MinWidth="110" IsReadOnly="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ComboBox Margin="4,0" Height="18" Padding="2,0"
+                                      VerticalContentAlignment="Center"
+                                      Foreground="#222222" Background="White"
+                                      ItemsSource="{Binding DataContext.RuleTypeOptions,
+                                                    RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                      SelectedItem="{Binding RuleNameDisplay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
 
             <!-- 整行颜色：根据每行的 State 切换 -->

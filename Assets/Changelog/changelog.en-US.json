@@ -15,7 +15,9 @@
       "Fixed timestamps of logs read back across days: entries are dated from the file name instead of always showing today",
       "Export History can now delete records: select several rows with Ctrl or Shift, then use Delete; a confirmation prompt comes first",
       "Fixed find and filter in the plain-text view: with plain text enabled, match highlighting, filtering and previous/next navigation now work again",
-      "Removed the redundant close button from the Find dialog; use the window title bar instead"
+      "Removed the redundant close button from the Find dialog; use the window title bar instead",
+      "Quick panel keeps a stable layout on hover: the in-row up/down buttons now occupy reserved space, so command rows no longer change width or height as the pointer moves",
+      "Quick panel commands can now be selected: right-click selects and offers Edit / Move Up / Move Down / Delete Selected, Ctrl+click toggles multi-select and Shift+click extends it, and selected rows show a blue bar; the toolbar minus button now deletes the selection instead of always the last row"
     ]
   },
   {

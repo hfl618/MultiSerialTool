@@ -297,6 +297,15 @@ public class CommandRule : System.ComponentModel.INotifyPropertyChanged, IExpect
     [System.Text.Json.Serialization.JsonIgnore]
     public bool HasHit => _hitCount > 0;
 
+    private bool _isSelected;
+    /// <summary>侧边栏选中态（Ctrl/Shift+单击、右键进入；仅运行期，不序列化）</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => Set(ref _isSelected, value);
+    }
+
     /// <summary>是否参与自动应答（auto/both）</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsAuto => _mode is CommandRuleMode.Auto or CommandRuleMode.Both;

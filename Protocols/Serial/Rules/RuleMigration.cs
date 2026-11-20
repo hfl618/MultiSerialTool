@@ -1,25 +1,49 @@
 namespace MultiSerialTool.Protocols.Serial;
 
 /// <summary>
-/// 规则迁移：把旧结构（QuickSends + AutoReplies 两张表）归一化到统一的 Commands。
-/// 加载规则时调用；Commands 已由新界面写入时直接保留，不重复迁移。
-/// 映射不删除旧字段，迁移期内旧界面仍可工作。
+/// 规则迁移：把旧结构（QuickSends + AutoReplies 两张表）并入统一的 Commands，
+/// 并入后清空旧字段，之后只有 Commands 一份数据，界面与引擎不会再各写各的。
+/// 加载规则时调用；重复调用幂等。
 /// </summary>
 public static class RuleMigration
 {
     /// <summary>
-    /// 就地归一化：Commands 非空则跳过；否则按旧字段生成并连续编号。
+    /// 就地归一化：旧字段中尚未出现在 Commands 里的条目按统一模型补齐，
+    /// 然后清空旧字段并重排序号。
     /// </summary>
     public static void Normalize(DeviceRuleSet rule)
     {
-        if (rule.Commands.Count > 0)
-            return;
+        rule.Fields ??= new();
+        rule.Charts ??= new();
+        rule.AutoReplies ??= new();
+        rule.QuickSends ??= new();
+        rule.Commands ??= new();
 
-        foreach (var quick in rule.QuickSends)
-            rule.Commands.Add(FromQuickSend(quick));
+        // 只在对应方向完全缺失时迁移：部分迁移过的文件（例如旧快捷发送已并入、
+        // 应答仍在旧表里）也能补齐，而不会重复添加已有条目
+        if (!rule.Commands.Any(c => c.IsManual))
+        {
+            foreach (var quick in rule.QuickSends)
+            {
+                if (!rule.Commands.Any(c => c.IsManual
+                        && c.Name == quick.Name && c.TxFrame == quick.Frame))
+                    rule.Commands.Add(FromQuickSend(quick));
+            }
+        }
 
-        foreach (var reply in rule.AutoReplies)
-            rule.Commands.Add(FromAutoReply(reply));
+        if (!rule.Commands.Any(c => c.IsAuto))
+        {
+            foreach (var reply in rule.AutoReplies)
+            {
+                if (!rule.Commands.Any(c => c.IsAuto
+                        && c.TriggerFrame == reply.Command && c.TxFrame == reply.ActualReply))
+                    rule.Commands.Add(FromAutoReply(reply));
+            }
+        }
+
+        // 旧字段已经并入统一模型，清空避免两份数据再次分叉
+        rule.AutoReplies.Clear();
+        rule.QuickSends.Clear();
 
         for (var i = 0; i < rule.Commands.Count; i++)
             rule.Commands[i].Index = i + 1;
@@ -54,52 +78,6 @@ public static class RuleMigration
         MaxTimes = reply.MaxTimes,
         HitCount = reply.HitCount
     };
-
-    /// <summary>
-    /// 反向填充：从统一 Commands 重建旧字段（迁移期内导入新格式文件后，
-    /// 旧界面仍绑定 AutoReplies/QuickSends）。阶段 3 删除旧字段时一并移除。
-    /// </summary>
-    public static void BackfillLegacy(DeviceRuleSet rule)
-    {
-        rule.AutoReplies.Clear();
-        rule.QuickSends.Clear();
-
-        foreach (var cmd in rule.Commands)
-        {
-            if (cmd.IsAuto)
-            {
-                rule.AutoReplies.Add(new AutoReplyRule
-                {
-                    Index = cmd.Index,
-                    Enabled = cmd.Enabled,
-                    Name = cmd.Name,
-                    MatchMode = cmd.TriggerMode,
-                    Command = cmd.TriggerFrame,
-                    Expected = cmd.TriggerFrame,
-                    Operation = "自动回复",
-                    ActualReply = cmd.TxFrame,
-                    DelayMs = cmd.DelayMs,
-                    MaxTimes = cmd.MaxTimes,
-                    HitCount = cmd.HitCount
-                });
-            }
-
-            if (cmd.IsManual)
-            {
-                rule.QuickSends.Add(new QuickSendRule
-                {
-                    Name = cmd.Name,
-                    Group = cmd.Group,
-                    Frame = cmd.TxFrame,
-                    Format = cmd.Format,
-                    Append = cmd.Append,
-                    Repeat = cmd.Repeat,
-                    IntervalMs = cmd.IntervalMs,
-                    Expect = cmd.Expect
-                });
-            }
-        }
-    }
 
     /// <summary>
     /// 判别帧文本是否为 HEX：去空白后全部为十六进制字符（mask 模式允许 ? 通配）

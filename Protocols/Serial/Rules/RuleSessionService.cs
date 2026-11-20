@@ -24,7 +24,7 @@ public sealed class RuleSessionService
     }
 
     /// <summary>更新当前规则并通知工作区</summary>
-    public void Publish(string name, DeviceRuleSet? rule)
+    public void Publish(string? name, DeviceRuleSet? rule)
     {
         CurrentName = name;
         CurrentRule = rule;

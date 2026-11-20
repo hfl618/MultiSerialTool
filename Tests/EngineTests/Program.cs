@@ -229,7 +229,75 @@ RuleMigration.Normalize(legacy);
 Check("Commands 非空时归一化幂等", legacy.Commands.Count == migrationCount,
     $"count={legacy.Commands.Count}");
 
-// 12. HEX 判别边界
+// 13. 统一命令自动应答：Commands 中的 auto 项生效
+var commandEngine = new RuleExecutionEngine();
+var commandReplies = new List<string>();
+commandEngine.FrameReady += p => commandReplies.Add(p.Text);
+commandEngine.UpdateRule(new DeviceRuleSet
+{
+    Commands =
+    {
+        new CommandRule
+        {
+            Mode = CommandRuleMode.Auto, Enabled = true, TriggerMode = "exact",
+            TriggerFrame = "AA BB", TxFrame = "CC DD"
+        }
+    }
+});
+commandEngine.ProcessRx(Crc16.HexToBytes("AA BB"), "AA BB", "");
+Check("Commands 自动应答命中并回复",
+    commandReplies.Count == 1 && commandReplies[0] == "CC DD",
+    string.Join("|", commandReplies));
+
+// 14. Commands 已有 auto 项时忽略旧 AutoReplies，避免重复应答
+var bothEngine = new RuleExecutionEngine();
+var bothReplies = new List<string>();
+bothEngine.FrameReady += p => bothReplies.Add(p.Text);
+bothEngine.UpdateRule(new DeviceRuleSet
+{
+    Commands =
+    {
+        new CommandRule
+        {
+            Mode = CommandRuleMode.Auto, Enabled = true, TriggerMode = "exact",
+            TriggerFrame = "AA BB", TxFrame = "CC DD"
+        }
+    },
+    AutoReplies =
+    {
+        new AutoReplyRule
+        {
+            Enabled = true, MatchMode = "exact", Command = "AA BB", ActualReply = "EE FF"
+        }
+    }
+});
+bothEngine.ProcessRx(Crc16.HexToBytes("AA BB"), "AA BB", "");
+Check("统一命令与旧表并存时不重复应答",
+    bothReplies.Count == 1 && bothReplies[0] == "CC DD",
+    string.Join("|", bothReplies));
+
+// 15. 部分迁移文件：Commands 已有手动命令，旧 AutoReplies 仍能补入
+var partial = new DeviceRuleSet
+{
+    Commands =
+    {
+        new CommandRule { Mode = CommandRuleMode.Manual, Name = "手动", TxFrame = "01 02" }
+    },
+    AutoReplies =
+    {
+        new AutoReplyRule
+        {
+            Command = "50 51", ActualReply = "60 61", MatchMode = "exact"
+        }
+    }
+};
+RuleMigration.Normalize(partial);
+Check("部分迁移文件补齐自动应答",
+    partial.Commands.Count == 2 && partial.Commands.Any(c => c.IsAuto)
+    && partial.AutoReplies.Count == 0,
+    $"count={partial.Commands.Count}");
+
+// 16. HEX 判别边界
 Check("HEX 帧判别",
     RuleMigration.LooksLikeHex("01 03 02 00 7A")
     && RuleMigration.LooksLikeHex("01 03 ?? ?? ?? ?? ?? ??")

@@ -24,6 +24,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0"
@@ -40,9 +41,16 @@
                       ToolTip="{loc:Translate HEX 支持空格分隔，ASCII 直接输入文本}"/>
 
         <TextBlock Grid.Row="2" Grid.Column="0"
+                   Text="{loc:Translate 触发帧}"
+                   VerticalAlignment="Center" Margin="0,0,10,0"/>
+        <dxe:TextEdit x:Name="TriggerBox" Grid.Row="2" Grid.Column="1"
+                      Margin="0,0,0,10" VerticalAlignment="Center"
+                      ToolTip="{loc:Translate 自动发送时用来匹配接收帧，留空则该命令不会自动应答}"/>
+
+        <TextBlock Grid.Row="3" Grid.Column="0"
                    Text="{loc:Translate 格式}"
                    VerticalAlignment="Center" Margin="0,0,10,0"/>
-        <ComboBox x:Name="FormatBox" Grid.Row="2" Grid.Column="1"
+        <ComboBox x:Name="FormatBox" Grid.Row="3" Grid.Column="1"
                   Margin="0,0,0,10" Width="120" HorizontalAlignment="Left"
                   VerticalContentAlignment="Center"
                   SelectedValuePath="Tag" SelectedIndex="0">
@@ -50,11 +58,11 @@
             <ComboBoxItem Tag="ascii" Content="ASCII"/>
         </ComboBox>
 
-        <CheckBox x:Name="AutoSendBox" Grid.Row="3" Grid.Column="1"
+        <CheckBox x:Name="AutoSendBox" Grid.Row="4" Grid.Column="1"
                   Content="{loc:Translate 自动发送}"
                   Margin="0,0,0,14" VerticalAlignment="Center"/>
 
-        <StackPanel Grid.Row="4" Grid.ColumnSpan="2"
+        <StackPanel Grid.Row="5" Grid.ColumnSpan="2"
                     Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="{loc:Translate 取消}" IsCancel="True"
                     Width="76" Height="28" Margin="0,0,8,0"/>

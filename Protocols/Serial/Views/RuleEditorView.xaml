@@ -127,6 +127,11 @@
             <!-- 第一行：按钮行 -->
             <dxlc:LayoutItem Label="{x:Null}">
                 <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <!-- 学习应答：发一次命令，把设备真实返回录成该命令的自动应答 -->
+                    <CheckBox Content="{loc:Translate 学习应答}"
+                              IsChecked="{Binding LearnMode, Mode=TwoWay}"
+                              VerticalAlignment="Center" Margin="0,0,12,0"
+                              ToolTip="{loc:Translate 开启后从侧边栏发出命令，设备返回的帧会自动录为该命令的自动应答}"/>
                     <dx:SimpleButton Height="28" Width="28" Margin="0,0,8,0"
                                      Glyph="{dx:SvgImageSource Uri='/Assets/Icons/add-one.svg'}"
                                      ToolTip="{loc:Translate 新增}"
@@ -188,10 +193,10 @@
                                             IsReadOnly="True"
                                             Width="Auto" MinWidth="40"/>
                         <DataGridTextColumn Header="{loc:Translate 命令}"
-                                            Binding="{Binding Command, UpdateSourceTrigger=PropertyChanged}"
+                                            Binding="{Binding TriggerFrame, UpdateSourceTrigger=PropertyChanged}"
                                             Width="1.5*" MinWidth="60"/>
-                        <DataGridTextColumn Header="{loc:Translate 预期}"
-                                            Binding="{Binding Expected, UpdateSourceTrigger=PropertyChanged}"
+                        <DataGridTextColumn Header="{loc:Translate 名称}"
+                                            Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
                                             Width="1.2*" MinWidth="50"/>
 
                         <!-- 解析方式：下拉选择 exact/mask/regex，存储值不变，显示本地化文本 -->
@@ -202,7 +207,7 @@
                                     <ComboBox Margin="4"
                                               VerticalAlignment="Center"
                                               SelectedValuePath="Tag"
-                                              SelectedValue="{Binding MatchMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                              SelectedValue="{Binding TriggerMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                                         <ComboBoxItem Tag="exact" Content="{loc:Translate 精确匹配}"/>
                                         <ComboBoxItem Tag="mask" Content="{loc:Translate 通配匹配}"/>
                                         <ComboBoxItem Tag="regex" Content="{loc:Translate 正则匹配}"/>
@@ -271,7 +276,7 @@
                         </DataGridTemplateColumn>
 
                         <DataGridTextColumn Header="{loc:Translate 实际回复}"
-                                            Binding="{Binding ActualReply, UpdateSourceTrigger=PropertyChanged}"
+                                            Binding="{Binding TxFrame, UpdateSourceTrigger=PropertyChanged}"
                                             Width="1.5*" MinWidth="60"/>
                     </DataGrid.Columns>
                 </DataGrid>

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 
 namespace MultiSerialTool.Protocols.Serial
 {
@@ -12,6 +13,38 @@ namespace MultiSerialTool.Protocols.Serial
         public SidePaneView()
         {
             InitializeComponent();
+        }
+
+        /// <summary>
+        /// Ctrl+单击=切换该行选中，Shift+单击=从锚点连选；两者都不发送。
+        /// 在隧道阶段截断，避免冒泡到行内命令按钮触发一次发送。
+        /// </summary>
+        private void Row_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (DataContext is not SerialWorkspaceViewModel vm
+                || sender is not FrameworkElement row
+                || row.DataContext is not CommandRule cmd)
+                return;
+
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+            {
+                vm.ExtendSelection(cmd);
+                e.Handled = true;
+            }
+            else if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                vm.ToggleSelection(cmd);
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>右键：先让该行进入选中，再照常弹出上下文菜单</summary>
+        private void Row_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (DataContext is SerialWorkspaceViewModel vm
+                && sender is FrameworkElement row
+                && row.DataContext is CommandRule cmd)
+                vm.SelectOnly(cmd);
         }
 
         /// <summary>

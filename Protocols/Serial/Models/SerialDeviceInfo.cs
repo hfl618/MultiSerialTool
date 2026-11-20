@@ -40,8 +40,26 @@ public class SerialDeviceInfo : ViewModelBase
     /// <summary>地址/描述信息</summary>
     public string Address { get; set; } = string.Empty;
 
-    private int _baudRate = 9600;
-    /// <summary>波特率：自动探测完成后回填真实生效值，通知表格刷新</summary>
+    private string _ruleName = string.Empty;
+    /// <summary>该端口绑定的设备规则名（空表示不挂规则，不解析也不自动应答）</summary>
+    public string RuleName
+    {
+        get => _ruleName;
+        set
+        {
+            if (SetProperty(ref _ruleName, value ?? string.Empty))
+                RaisePropertyChanged(nameof(RuleNameDisplay));
+        }
+    }
+
+    /// <summary>规则下拉显示文本：未绑定时显示“（无规则）”</summary>
+    public string RuleNameDisplay
+    {
+        get => string.IsNullOrEmpty(_ruleName) ? DeviceRuleCache.None : _ruleName;
+        set => RuleName = value == DeviceRuleCache.None ? string.Empty : value;
+    }
+
+    private int _baudRate = 9600;    /// <summary>波特率：自动探测完成后回填真实生效值，通知表格刷新</summary>
     public int BaudRate
     {
         get => _baudRate;

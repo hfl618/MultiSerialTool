@@ -246,5 +246,8 @@
   "第 {0}/{1} 页 · 共 {2} 条": "Page {0}/{1} · {2} entries",
   "确定清空当前显示的日志？日志文件不受影响。": "Clear the displayed log? The log file is not affected.",
   "确定删除当天的日志文件？此操作不可恢复。": "Delete today's log file? This cannot be undone.",
-  "日志文件被占用，删除失败。": "The log file is in use and could not be deleted."
+  "日志文件被占用，删除失败。": "The log file is in use and could not be deleted.",
+  "编辑": "Edit",
+  "删除所选": "Delete Selected",
+  "编辑自定义命令": "Edit Custom Command"
 }

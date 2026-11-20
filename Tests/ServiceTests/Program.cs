@@ -290,17 +290,14 @@ asciiRuleSet.AutoReplies.Add(new AutoReplyRule
     ActualReply = "860123456789012\r\nOK"
 });
 var hit = AutoReplyEngine.FindMatch(asciiRuleSet, asciiCmdHex, "AT+CGSN");
-Check("ASCII 触发帧命中自动应答规则", hit is not null, hit?.Name ?? "未命中");
+Check("ASCII 触发帧命中自动应答规则", hit is not null, hit?.Reply ?? "未命中");
 
-var asciiPayload = hit is null ? null : AutoReplyEngine.BuildReplyPayload(hit);
+var asciiPayload = hit is null ? null : AutoReplyEngine.BuildReplyPayload(hit.Value.Reply);
 Check("ASCII 自动应答按原样回发",
     asciiPayload is { IsHex: false, Text: "860123456789012\r\nOK" },
     asciiPayload is null ? "无载荷" : $"IsHex={asciiPayload.IsHex} Text={asciiPayload.Text.Replace("\r", "\\r").Replace("\n", "\\n")}");
 
-var hexPayload = AutoReplyEngine.BuildReplyPayload(new AutoReplyRule
-{
-    ActualReply = "01 03 02 00 7A [CRC16]"
-});
+var hexPayload = AutoReplyEngine.BuildReplyPayload("01 03 02 00 7A [CRC16]");
 Check("HEX 自动应答仍替换校验占位符",
     hexPayload is { IsHex: true, Text: "01 03 02 00 7A 39 A7" },
     $"IsHex={hexPayload.IsHex} Text={hexPayload.Text}");

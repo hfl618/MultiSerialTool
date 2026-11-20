@@ -29,6 +29,9 @@ public static class AppPaths
     /// <summary>工作区 UI 状态文件</summary>
     public static string WorkspaceFile => Path.Combine(RootDirectory, "workspace.json");
 
+    /// <summary>端口 → 设备规则绑定文件</summary>
+    public static string PortRulesFile => Path.Combine(RootDirectory, "portrules.json");
+
     /// <summary>实时导出历史文件</summary>
     public static string ExportHistoryFile => Path.Combine(RootDirectory, "export-history.json");
 

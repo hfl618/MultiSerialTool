@@ -1,5 +1,8 @@
 namespace MultiSerialTool.Protocols.Serial;
 
+/// <summary>自动应答命中结果：应答帧原文与延时</summary>
+public readonly record struct AutoReplyHit(string Reply, int DelayMs);
+
 /// <summary>
 /// 自动应答引擎：RX 帧到达时按当前规则匹配启用的应答项，
 /// 命中后产出应答帧（HEX 帧替换校验占位符，ASCII 帧原样发送）。
@@ -7,11 +10,34 @@ namespace MultiSerialTool.Protocols.Serial;
 /// </summary>
 public static class AutoReplyEngine
 {
-    /// <summary>查找命中的应答规则；无命中返回 null</summary>
-    public static AutoReplyRule? FindMatch(DeviceRuleSet? rule, string actualHex, string actualText)
+    /// <summary>
+    /// 查找命中的应答规则；无命中返回 null。
+    /// 统一命令模型优先（Commands 中存在 auto/both 项时只看它）；
+    /// 未经迁移的旧规则才回退到 AutoReplies。
+    /// </summary>
+    public static AutoReplyHit? FindMatch(DeviceRuleSet? rule, string actualHex, string actualText)
     {
-        if (rule?.AutoReplies is null)
+        if (rule is null)
             return null;
+
+        var autoCommands = rule.Commands.Where(c => c.IsAuto).ToList();
+        if (autoCommands.Count > 0)
+        {
+            foreach (var item in autoCommands)
+            {
+                if (!item.Enabled)
+                    continue;
+                if (item.MaxTimes > 0 && item.HitCount >= item.MaxTimes)
+                    continue;
+
+                if (FrameMatcher.Match(item.TriggerMode, actualHex, actualText, item.TriggerFrame))
+                {
+                    item.HitCount++;
+                    return new AutoReplyHit(item.TxFrame, item.DelayMs);
+                }
+            }
+            return null;
+        }
 
         foreach (var item in rule.AutoReplies)
         {
@@ -23,16 +49,16 @@ public static class AutoReplyEngine
             if (FrameMatcher.Match(item.MatchMode, actualHex, actualText, item.Command))
             {
                 item.HitCount++;
-                return item;
+                return new AutoReplyHit(item.ActualReply, item.DelayMs);
             }
         }
         return null;
     }
 
     /// <summary>构建应答载荷：HEX 帧替换校验占位符，ASCII 帧按原文发送</summary>
-    public static SerialTxPayload BuildReplyPayload(AutoReplyRule rule)
+    public static SerialTxPayload BuildReplyPayload(string? reply)
     {
-        string actualReply = rule.ActualReply ?? string.Empty;
+        string actualReply = reply ?? string.Empty;
         if (!IsHexReply(actualReply))
             return SerialTxPayload.FromText(actualReply);
 

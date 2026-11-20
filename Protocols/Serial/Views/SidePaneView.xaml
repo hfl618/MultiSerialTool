@@ -61,8 +61,8 @@
                                                  Command="{Binding AddCommandItemCommand}"/>
                                 <dx:SimpleButton Width="22" Height="22" Margin="2,0"
                                                  Glyph="{dx:SvgImageSource Uri='/Assets/Icons/reduce-one.svg'}"
-                                                 ToolTip="{loc:Translate 删除}"
-                                                 Command="{Binding RemoveCommandItemCommand}"/>
+                                                 ToolTip="{loc:Translate 删除所选}"
+                                                 Command="{Binding DeleteSelectedCommand}"/>
                             </StackPanel>
                         </Grid>
 
@@ -70,21 +70,67 @@
                             <ItemsControl ItemsSource="{Binding CommandItems}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid x:Name="RowRoot" Margin="4,2">
+                                        <!-- 整行：透明背景让含右侧 18px 预留列都能命中；
+                                             选中态用浅蓝底 + 3px 竖条，与单击发送、悬停浅灰区分开 -->
+                                        <Grid x:Name="RowRoot" Margin="4,2"
+                                              Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                              PreviewMouseLeftButtonDown="Row_PreviewMouseLeftButtonDown"
+                                              PreviewMouseRightButtonDown="Row_PreviewMouseRightButtonDown">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter Property="Background" Value="#E3EEFB"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+
+                                            <Grid.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="{loc:Translate 编辑}"
+                                                              Command="{Binding PlacementTarget.Tag.EditSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                    <Separator/>
+                                                    <MenuItem Header="{loc:Translate 上移}"
+                                                              Command="{Binding PlacementTarget.Tag.MoveSelectedUpCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                    <MenuItem Header="{loc:Translate 下移}"
+                                                              Command="{Binding PlacementTarget.Tag.MoveSelectedDownCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                    <Separator/>
+                                                    <MenuItem Header="{loc:Translate 删除所选}"
+                                                              Command="{Binding PlacementTarget.Tag.DeleteSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                </ContextMenu>
+                                            </Grid.ContextMenu>
+
                                             <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="3"/>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="18"/>
                                             </Grid.ColumnDefinitions>
 
+                                            <!-- 选中竖条：3px 常驻，悬停/单击都不改变布局，只切颜色 -->
+                                            <Border Grid.Column="0" Margin="0,1,0,1">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter Property="Background" Value="#3B82F6"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                            </Border>
+
                                             <!-- 自动发送复选框：独立列，不与整行按钮嵌套，点击只切换不发送 -->
-                                            <dxe:CheckEdit Grid.Column="0"
+                                            <dxe:CheckEdit Grid.Column="1"
                                                            IsChecked="{Binding AutoSend, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                            VerticalAlignment="Center"
                                                            Margin="2,0,6,0"
                                                            ToolTip="{loc:Translate 自动发送}"/>
 
-                                            <dx:SimpleButton Grid.Column="1" Padding="6,4"
+                                            <dx:SimpleButton Grid.Column="2" Padding="6,4"
                                                             HorizontalContentAlignment="Left"
                                                             ToolTip="{Binding ResultMessage}"
                                                             Command="{Binding DataContext.CommandClickCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -100,18 +146,28 @@
                                                 </StackPanel>
                                             </dx:SimpleButton>
 
-                                            <!-- 行操作：悬停显示竖排 ↑ ↓，独立列避免遮挡命令名 -->
-                                            <StackPanel x:Name="RowActions" Grid.Column="2"
+                                            <!-- 行操作：悬停显示竖排 ↑ ↓，独立列避免遮挡命令名；
+                                                 列宽固定 + 常态 Hidden 占位，悬停切换不改变行宽/行高，避免视觉晃动 -->
+                                            <StackPanel x:Name="RowActions" Grid.Column="3"
                                                         Orientation="Vertical"
-                                                        VerticalAlignment="Center"
-                                                        Visibility="Collapsed">
-                                                <dx:SimpleButton Width="16" Height="14" Margin="1,0"
+                                                        VerticalAlignment="Center">
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
+                                                        <Setter Property="Visibility" Value="Hidden"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMouseOver, ElementName=RowRoot}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </StackPanel.Style>
+                                                <dx:SimpleButton Width="16" Height="13" Margin="1,0"
                                                                  Padding="0"
                                                                  Glyph="{dx:SvgImageSource Uri='/Assets/Icons/up.svg'}"
                                                                  ToolTip="{loc:Translate 上移}"
                                                                  Command="{Binding DataContext.MoveCommandItemUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                  CommandParameter="{Binding}"/>
-                                                <dx:SimpleButton Width="16" Height="14" Margin="1,0"
+                                                <dx:SimpleButton Width="16" Height="13" Margin="1,0"
                                                                  Padding="0"
                                                                  Glyph="{dx:SvgImageSource Uri='/Assets/Icons/down.svg'}"
                                                                  ToolTip="{loc:Translate 下移}"
@@ -119,11 +175,6 @@
                                                                  CommandParameter="{Binding}"/>
                                             </StackPanel>
                                         </Grid>
-                                        <DataTemplate.Triggers>
-                                            <DataTrigger Binding="{Binding IsMouseOver, ElementName=RowRoot}" Value="True">
-                                                <Setter TargetName="RowActions" Property="Visibility" Value="Visible"/>
-                                            </DataTrigger>
-                                        </DataTemplate.Triggers>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

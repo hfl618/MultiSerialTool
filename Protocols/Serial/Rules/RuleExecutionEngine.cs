@@ -53,10 +53,6 @@ public sealed class RuleExecutionEngine
         RebuildFieldRows();
     }
 
-    /// <summary>RuleSessionService.RuleChanged 事件适配入口</summary>
-    public void OnRuleChanged()
-        => UpdateRule(RuleSessionService.Current.CurrentRule);
-
     /// <summary>处理一条完整 RX 帧：解析回填 + 自动应答</summary>
     public void ProcessRx(byte[] frame, string hex, string text)
     {
@@ -142,11 +138,11 @@ public sealed class RuleExecutionEngine
         if (hit is null)
             return;
 
-        var reply = AutoReplyEngine.BuildReplyPayload(hit);
+        var reply = AutoReplyEngine.BuildReplyPayload(hit.Value.Reply);
         if (string.IsNullOrEmpty(reply.Text))
             return;
 
-        if (hit.DelayMs <= 0)
+        if (hit.Value.DelayMs <= 0)
         {
             FrameReady?.Invoke(reply);
             return;
@@ -154,7 +150,7 @@ public sealed class RuleExecutionEngine
 
         // 非阻塞延时：不占用串口接收线程，延迟到期后再回调写出；
         // 断开/重连由 OnEngineFrameReady 的 ConnectVersion 校验拦截。
-        var delayMs = hit.DelayMs;
+        var delayMs = hit.Value.DelayMs;
         Task.Run(async () =>
         {
             try
