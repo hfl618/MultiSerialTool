@@ -17,7 +17,13 @@
       "Fixed find and filter in the plain-text view: with plain text enabled, match highlighting, filtering and previous/next navigation now work again",
       "Removed the redundant close button from the Find dialog; use the window title bar instead",
       "Quick panel keeps a stable layout on hover: the in-row up/down buttons now occupy reserved space, so command rows no longer change width or height as the pointer moves",
-      "Quick panel commands can now be selected: right-click selects and offers Edit / Move Up / Move Down / Delete Selected, Ctrl+click toggles multi-select and Shift+click extends it, and selected rows show a blue bar; the toolbar minus button now deletes the selection instead of always the last row"
+      "Quick panel commands can now be selected: right-click selects and offers Edit / Move Up / Move Down / Delete Selected, Ctrl+click toggles multi-select and Shift+click extends it, and selected rows show a blue bar; the toolbar minus button now deletes the selection instead of always the last row",
+      "The port page gains a Rule column: each port picks its own device rule, and a port set to (no rule) neither parses nor answers; rows keep a fixed height so the rule drop-down no longer stretches them",
+      "One rule can serve several ports: edits on the rule page take effect immediately on every port bound to it, and restoring factory rules or importing a replacement remounts those ports",
+      "Upgrading keeps the previous behaviour: on first launch the old global rule choice is written into each port binding instead of leaving every port without a rule",
+      "The rule page gains Learn Answer: with it checked, sending a command from the quick panel records the frame the device actually returns as that command's auto-reply",
+      "The auto-reply table now edits the trigger frame, name, send frame and match mode of the command itself, sharing one record with the quick panel instead of keeping two copies",
+      "Old rule files are normalised on load: legacy quick sends and auto replies are folded into the unified command list and the legacy fields cleared, so entries no longer duplicate"
     ]
   },
   {
