@@ -5,7 +5,9 @@
     "notes": [
       "Added an application icon: the main window, About, Export History, Find, New Command and Scope windows now all show the same icon",
       "The executable and the setup package carry the same icon, so Explorer, the taskbar and Apps & Features identify the app at a glance",
-      "Fixed the log not scrolling automatically: both the row list and the plain-text view scroll to the newest entry, and still stay put while you scroll back through history"
+      "Fixed the log not scrolling automatically: both the row list and the plain-text view scroll to the newest entry, and still stay put while you scroll back through history",
+      "Fixed find and filter in the plain-text view: with plain text enabled, match highlighting, filtering and previous/next navigation now work again",
+      "Removed the redundant close button from the Find dialog; use the window title bar instead"
     ]
   },
   {

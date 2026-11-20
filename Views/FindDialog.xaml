@@ -26,7 +26,6 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <TextBox Grid.Column="0" x:Name="KeywordBox"
@@ -51,14 +50,6 @@
                              Glyph="{dx:SvgImageSource Uri='/Assets/Icons/down-square.svg'}"
                              GlyphWidth="16" GlyphHeight="16"
                              Command="{Binding FindNextCommand}"/>
-
-            <!-- 关闭：只显示图标，文字放进 ToolTip，避免 30px 宽度裁切 -->
-            <dx:SimpleButton Grid.Column="3" x:Name="BtnClose" Margin="8,0,0,0"
-                             Width="30" Height="28"
-                             ToolTip="{loc:Translate 关闭}"
-                             Glyph="{dx:SvgImageSource Uri='/Assets/Icons/close.svg'}"
-                             GlyphWidth="16" GlyphHeight="16"
-                             Click="BtnClose_Click"/>
         </Grid>
 
         <!-- 第二行：匹配方式 -->

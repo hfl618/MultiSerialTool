@@ -58,6 +58,4 @@ public partial class FindDialog : Window
 
     private bool FindPreviousCommandCanRun()
         => ((FindDialogViewModel)DataContext).FindPreviousCommand.CanExecute(null);
-
-    private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 }
