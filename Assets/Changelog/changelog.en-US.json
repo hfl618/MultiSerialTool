@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.0.7",
+    "date": "2026-11-20",
+    "notes": [
+      "Added in-app auto-update: the manifest is checked silently at startup and the About window offers Check for Updates and Update Now, so the Release page no longer has to be opened by hand",
+      "Downloaded packages are verified against the manifest's SHA256 and size; a mismatch is discarded and the install directory is left untouched",
+      "Portable copies unpack over the install directory; copies installed by the setup run it silently, keeping the uninstall entry and the version in Apps & Features accurate",
+      "An update only writes the files present in the package, so config.json, Logs, Rules, export history and production data are preserved",
+      "Replacement runs in a detached script after the app exits: it waits for the process, swaps the executable atomically and relaunches, logging failures to update.log",
+      "The About window shows the check result and download progress, and marks the update as required when the manifest sets forceUpdate",
+      "The release manifest now carries installerUrl, installerSha256 and installerSize, kept in sync by CI and the local release script; older manifests without these fields still update as a portable copy",
+      "Version history in the About window now uses the same comparison as update checks, accepting a v prefix and prerelease suffixes such as -beta"
+    ]
+  },
+  {
     "version": "1.0.6",
     "date": "2026-11-19",
     "notes": [
