@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Threading;
 using MultiSerialTool.Models.Localization;
 using MultiSerialTool.Services;
+using MultiSerialTool.Services.Update;
 
 namespace MultiSerialTool;
 
@@ -27,6 +28,24 @@ public partial class App : System.Windows.Application
 
         LogService.Current.Info(Source, "Startup",
             $"程序启动，版本 {GetType().Assembly.GetName().Version}，CLR {Environment.Version}");
+
+        // 启动静默检查更新：不弹窗、不阻断，结果留在 UpdateService.LastResult 供关于页展示
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var result = await UpdateService.Current.CheckAsync();
+                if (result.Available)
+                {
+                    LogService.Current.Info(Source, "UpdateCheck",
+                        $"发现新版本 {result.Latest}，当前 {result.Current}");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.Current.Error(Source, "UpdateCheck", ex.Message);
+            }
+        });
     }
 
     protected override void OnExit(ExitEventArgs e)

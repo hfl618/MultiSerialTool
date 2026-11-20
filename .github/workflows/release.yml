@@ -59,6 +59,20 @@ jobs:
           $zipBytes = [IO.File]::ReadAllBytes($zip)
           $sha256 = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($zipBytes)).Replace('-','')
 
+          # 安装版升级包：客户端据此走静默安装而非解包覆盖
+          $setup = "publish/Setup_MultiSerialTool_$version.exe"
+          $installerSha = ""
+          $installerSize = 0
+          if (Test-Path $setup) {
+            $setupBytes = [IO.File]::ReadAllBytes($setup)
+            $installerSha = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($setupBytes)).Replace('-','')
+            $installerSize = (Get-Item $setup).Length
+          }
+          $installerUrl = ""
+          if ($installerSha) {
+            $installerUrl = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Setup_MultiSerialTool_$version.exe"
+          }
+
           # OTA 下载直连 Release 资产，无需自建下载服务器
           $notes = ""
           $log = "Assets/Changelog/changelog.zh-CN.json"
@@ -76,6 +90,9 @@ jobs:
             size         = (Get-Item $zip).Length
             releaseNotes = $notes
             publishedAt  = (Get-Date).ToString("yyyy-MM-ddTHH:mm:sszzz")
+            installerUrl    = $installerUrl
+            installerSha256 = $installerSha
+            installerSize   = $installerSize
           }
           [IO.File]::WriteAllText("publish/update_manifest.json", ($manifest | ConvertTo-Json -Depth 3), (New-Object Text.UTF8Encoding($false)))
           # body_path 必须存在，否则 action 会报错；无 changelog 条目时给占位说明

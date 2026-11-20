@@ -9,10 +9,13 @@ namespace MultiSerialTool.Views;
 /// </summary>
 public partial class AboutWindow : Window
 {
+    private readonly AboutViewModel _viewModel = new();
+
     public AboutWindow()
     {
         InitializeComponent();
-        DataContext = new AboutViewModel();
+        DataContext = _viewModel;
+        Closed += (_, _) => _viewModel.Dispose();
     }
 
     /// <summary>点击 GitHub 链接：用系统默认浏览器打开，异常保护</summary>

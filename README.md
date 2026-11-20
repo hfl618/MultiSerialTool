@@ -652,6 +652,21 @@ https://github.com/hfl618/MultiSerialTool/releases/latest/download/update_manife
 `https://github.com/hfl618/MultiSerialTool/releases/download/v1.0.5/app-1.0.5.zip`。
 公开仓库匿名可下；私有仓库需鉴权（token 不要写进客户端）。`HttpClient` 默认跟随 302 跳转，客户端代码无需改动。
 
+客户端链路见 `Services/Update/`，行为如下：
+
+- 启动时后台静默检查一次，不弹窗；关于页显示结果，并提供「检查更新 / 立即更新」。
+- 下载后校验 `sha256` 与 `size`，不符立即丢弃，不触碰安装目录。
+- 绿色版：解包覆盖安装目录中**包里存在的**文件；`config.json`、`Logs`、`Rules`、`Data\Production` 等用户数据不受影响。
+- 安装版（安装目录命中卸载注册表项）：下载 `installerUrl` 并静默运行，保持卸载项与版本号一致；清单缺 `installerSha256` 时退回解包覆盖。
+- `forceUpdate=true` 时关于页标注为强制版本。
+
+调试与自建镜像：
+
+| 环境变量 | 作用 |
+|---|---|
+| `MST_UPDATE_MANIFEST_URL` | 覆盖清单来源，支持 http(s) 地址或本地文件路径 |
+| `MST_UPDATE_APPLY_MODE` | `copy` / `installer`，强制走某一条覆盖路径 |
+
 ### 16.5 本地不缓存历史包
 
 - `-Upload`：上传成功后自动删除本次的 zip 与安装包（加 `-KeepArtifacts` 可保留）。

@@ -133,25 +133,10 @@ $zipPath = Join-Path $publishRoot $zipName
 if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
 Compress-Archive -Path (Join-Path $appDir '*') -DestinationPath $zipPath -CompressionLevel Optimal
 
-# ---------- 4. SHA256 与 OTA 清单 ----------
+# ---------- 4. SHA256（绿色版 zip） ----------
 $hashBytes = [System.Security.Cryptography.SHA256]::Create().ComputeHash([IO.File]::ReadAllBytes($zipPath))
 $sha256 = [BitConverter]::ToString($hashBytes).Replace('-', '')
 $size = (Get-Item -LiteralPath $zipPath).Length
-
-$manifest = [ordered]@{
-    version       = $version
-    exeName       = $exeName
-    forceUpdate   = [bool]$ForceUpdate
-    packageUrl    = "$OtaBaseUrl/$tagName/$zipName"
-    sha256        = $sha256
-    size          = $size
-    releaseNotes  = $ReleaseNotes
-    publishedAt   = (Get-Date).ToString("yyyy-MM-ddTHH:mm:sszzz")
-}
-$manifestPath = Join-Path $publishRoot 'update_manifest.json'
-[IO.File]::WriteAllText($manifestPath,
-    ($manifest | ConvertTo-Json -Depth 3),
-    (New-Object Text.UTF8Encoding($false)))
 
 # ---------- 5. Inno Setup 安装包 ----------
 $setupPath = Join-Path $publishRoot "Setup_MultiSerialTool_$version.exe"
@@ -177,7 +162,38 @@ if (-not $SkipInstaller) {
     }
 }
 
-# ---------- 6. 上传 GitHub Release（可选） ----------
+# ---------- 6. OTA 清单 ----------
+# 清单放在安装包之后生成：客户端据此判断走解包覆盖还是静默安装
+$setupName = "Setup_MultiSerialTool_$version.exe"
+$installerSha = ''
+$installerSize = 0
+if (Test-Path -LiteralPath $setupPath) {
+    $installerBytes = [System.Security.Cryptography.SHA256]::Create().ComputeHash([IO.File]::ReadAllBytes($setupPath))
+    $installerSha = [BitConverter]::ToString($installerBytes).Replace('-', '')
+    $installerSize = (Get-Item -LiteralPath $setupPath).Length
+}
+$installerUrl = ''
+if ($installerSha) { $installerUrl = "$OtaBaseUrl/$tagName/$setupName" }
+
+$manifest = [ordered]@{
+    version         = $version
+    exeName         = $exeName
+    forceUpdate     = [bool]$ForceUpdate
+    packageUrl      = "$OtaBaseUrl/$tagName/$zipName"
+    sha256          = $sha256
+    size            = $size
+    releaseNotes    = $ReleaseNotes
+    publishedAt     = (Get-Date).ToString("yyyy-MM-ddTHH:mm:sszzz")
+    installerUrl    = $installerUrl
+    installerSha256 = $installerSha
+    installerSize   = $installerSize
+}
+$manifestPath = Join-Path $publishRoot 'update_manifest.json'
+[IO.File]::WriteAllText($manifestPath,
+    ($manifest | ConvertTo-Json -Depth 3),
+    (New-Object Text.UTF8Encoding($false)))
+
+# ---------- 7. 上传 GitHub Release（可选） ----------
 $assets = @($zipPath, $manifestPath)
 if (Test-Path -LiteralPath $setupPath) { $assets += $setupPath }
 
@@ -211,7 +227,7 @@ if ($Upload) {
     Write-Host "  https://github.com/hfl618/MultiSerialTool/releases/latest/download/update_manifest.json"
 }
 
-# ---------- 7. 本地清理：云端归档，本地不留历史包 ----------
+# ---------- 8. 本地清理：云端归档，本地不留历史包 ----------
 # 若上传失败会在上一段 throw 中断，本段不会执行，避免删掉未成功上传的产物
 if ($Upload -and -not $KeepArtifacts) {
     foreach ($f in @($zipPath, $setupPath)) {

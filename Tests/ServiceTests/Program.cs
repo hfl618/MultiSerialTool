@@ -1,12 +1,14 @@
 using System.Data;
 using System.Globalization;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using MultiSerialTool.Protocols.Serial;
 using MultiSerialTool.Services;
 using MultiSerialTool.Services.Storage;
+using MultiSerialTool.Services.Update;
 
 // 服务层测试：内置设备规则、CSV 导出、帧匹配、实时落盘记录器
 int pass = 0, fail = 0, skip = 0;
@@ -462,6 +464,107 @@ Check("扩展名映射", FileExportFormats.GetExtension(FileExportFormats.Csv) =
                    && FileExportFormats.GetExtension(FileExportFormats.Json) == ".jsonl");
 Check("下拉选项顺序", string.Join(",", FileExportFormats.All) == "csv,txt,hex,json");
 Check("默认导出目录在文档下", AppPaths.DefaultExportDirectory.Contains("MultiSerialTool"));
+
+// ================= F. 更新清单与版本比较 =================
+Console.WriteLine();
+Console.WriteLine("=== F. 更新清单与版本比较 ===");
+
+Check("版本-数值比较", UpdateVersions.Compare("1.2.10", "1.2.9") > 0);
+Check("版本-相同", UpdateVersions.Compare("1.0.6", "1.0.6") == 0);
+Check("版本-v 前缀", UpdateVersions.Compare("v1.0.7", "1.0.6") > 0);
+Check("版本-预发布低于同号正式版", UpdateVersions.Compare("1.2.3-beta", "1.2.3") < 0);
+Check("版本-预发布之间比较", UpdateVersions.Compare("1.2.3-beta.2", "1.2.3-beta.1") > 0);
+Check("版本-非法串回退字符串比较", UpdateVersions.Compare("abc", "abd") < 0);
+
+string manifestJson = """
+    {
+      "version": "9.9.9",
+      "exeName": "MultiSerialTool-hfl.exe",
+      "forceUpdate": true,
+      "packageUrl": "app-9.9.9.zip",
+      "sha256": "ABCDEF",
+      "size": 123,
+      "releaseNotes": "notes",
+      "publishedAt": "2026-11-20T08:00:00+08:00"
+    }
+    """;
+
+var manifest = JsonSerializer.Deserialize<UpdateManifest>(manifestJson, JsonFile.Options);
+Check("清单-解析必填字段", manifest is { Version: "9.9.9", ForceUpdate: true, Size: 123 });
+Check("清单-缺安装包字段为 null", manifest?.InstallerUrl is null && manifest?.InstallerSha256 is null);
+
+var helper = UpdateApplier.BuildHelperStartInfo("Write-Output 1", new Dictionary<string, string>
+{
+    ["MST_SRC"] = @"C:\程序 目录\子目录"
+});
+Check("替换器-路径不进命令行",
+    !helper.Arguments.Contains("程序") && helper.Arguments.Contains("-EncodedCommand"));
+Check("替换器-路径走环境变量", helper.Environment["MST_SRC"] == @"C:\程序 目录\子目录");
+
+string updateDir = Path.Combine(Path.GetTempPath(), "mst-update-tests", Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(updateDir);
+try
+{
+    string payload = Path.Combine(updateDir, "payload.bin");
+    File.WriteAllBytes(payload, new byte[] { 1, 2, 3, 4, 5 });
+    string payloadSha = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(payload)));
+
+    string copied = await UpdateService.Current.DownloadAsync(payload, payloadSha, 5, Path.Combine(updateDir, "ok.bin"));
+    Check("下载-本地包校验通过", File.Exists(copied) && new FileInfo(copied).Length == 5);
+
+    string badTarget = Path.Combine(updateDir, "bad.bin");
+    bool rejected = false;
+    try
+    {
+        await UpdateService.Current.DownloadAsync(payload, "00FF", 5, badTarget);
+    }
+    catch (UpdateException)
+    {
+        rejected = true;
+    }
+
+    Check("下载-校验不符被拒绝且不留残文件", rejected && !File.Exists(badTarget));
+
+    Check("地址-相对路径解析",
+        UpdateService.ResolveAssetUrl("app.zip").EndsWith("app.zip", StringComparison.OrdinalIgnoreCase));
+
+    // 本地目录充当发布源：清单与包放在同一目录，包地址用相对文件名
+    string feed = Path.Combine(updateDir, "feed");
+    Directory.CreateDirectory(feed);
+    string feedZip = Path.Combine(feed, "app-9.9.9.zip");
+    File.WriteAllBytes(feedZip, new byte[] { 9, 9, 9 });
+    string feedSha = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(feedZip)));
+    File.WriteAllText(Path.Combine(feed, "update_manifest.json"), $$"""
+        {
+          "version": "9.9.9",
+          "exeName": "MultiSerialTool-hfl.exe",
+          "packageUrl": "app-9.9.9.zip",
+          "sha256": "{{feedSha}}",
+          "size": 3,
+          "forceUpdate": false
+        }
+        """);
+
+    string? previousSource = Environment.GetEnvironmentVariable(UpdateService.ManifestUrlVariable);
+    Environment.SetEnvironmentVariable(
+        UpdateService.ManifestUrlVariable, Path.Combine(feed, "update_manifest.json"));
+    try
+    {
+        var check = await UpdateService.Current.CheckAsync();
+        Check("检查-本地清单识别新版本",
+            check.Available && check.Latest == "9.9.9" && check.Manifest?.PackageUrl == "app-9.9.9.zip");
+        Check("检查-相对包地址指向清单目录",
+            UpdateService.ResolveAssetUrl("app-9.9.9.zip") == feedZip);
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable(UpdateService.ManifestUrlVariable, previousSource);
+    }
+}
+finally
+{
+    try { Directory.Delete(updateDir, true); } catch { }
+}
 
 Console.WriteLine($"=== 结果：{pass} 通过 / {fail} 失败 / {skip} 跳过 ===");
 return fail == 0 ? 0 : 1;
