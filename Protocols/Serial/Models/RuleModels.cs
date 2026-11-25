@@ -241,7 +241,67 @@ public class CommandRule : System.ComponentModel.INotifyPropertyChanged, IExpect
 
     private string _txFrame = string.Empty;
     /// <summary>发送帧（HEX/ASCII 文本，支持 [CRC16] 占位符）</summary>
-    public string TxFrame { get => _txFrame; set => Set(ref _txFrame, value); }
+    public string TxFrame
+    {
+        get => _txFrame;
+        set
+        {
+            if (Set(ref _txFrame, value))
+                NotifyReplyComparison();
+        }
+    }
+
+    private string _expected = string.Empty;
+    /// <summary>预期回复：与「实际回复」逐字节比对，一致行绿、不同行红</summary>
+    public string Expected
+    {
+        get => _expected;
+        set
+        {
+            if (Set(ref _expected, value))
+                NotifyReplyComparison();
+        }
+    }
+
+    private void NotifyReplyComparison()
+    {
+        PropertyChanged?.Invoke(this,
+            new System.ComponentModel.PropertyChangedEventArgs(nameof(ReplyMatchState)));
+    }
+
+    /// <summary>预期回复与实际回复的比对结果：none（缺一项）/ match / mismatch</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string ReplyMatchState
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_expected) || string.IsNullOrWhiteSpace(_txFrame))
+                return "none";
+
+            if (string.Equals(FrameMatcher.NormalizeHex(_expected),
+                              FrameMatcher.NormalizeHex(_txFrame),
+                              StringComparison.OrdinalIgnoreCase))
+                return "match";
+
+            // 一边填 HEX、一边填 ASCII 时按实际发送的字节比较
+            try
+            {
+                return ToReplyBytes(_expected).AsSpan().SequenceEqual(ToReplyBytes(_txFrame))
+                    ? "match"
+                    : "mismatch";
+            }
+            catch
+            {
+                return "mismatch";
+            }
+        }
+    }
+
+    /// <summary>按应答帧的发送形式取字节：HEX 帧解析为字节，ASCII 帧取 UTF-8</summary>
+    private static byte[] ToReplyBytes(string frame)
+        => AutoReplyEngine.IsHexReply(frame)
+            ? Crc16.HexToBytes(FrameMatcher.NormalizeHex(frame))
+            : System.Text.Encoding.UTF8.GetBytes(frame);
 
     private string _format = "hex";
     /// <summary>帧格式：hex / ascii</summary>

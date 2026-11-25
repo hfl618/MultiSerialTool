@@ -179,6 +179,14 @@
                                 <DataTrigger Binding="{Binding HasHit}" Value="True">
                                     <Setter Property="Background" Value="#E8F5E9"/>
                                 </DataTrigger>
+                                <!-- 预期回复与实际回复逐字节比对：一致绿、不同红 -->
+                                <DataTrigger Binding="{Binding ReplyMatchState}" Value="match">
+                                    <Setter Property="Background" Value="#E8F5E9"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding ReplyMatchState}" Value="mismatch">
+                                    <Setter Property="Background" Value="#FDECEA"/>
+                                    <Setter Property="Foreground" Value="#B71C1C"/>
+                                </DataTrigger>
                                 <DataTrigger Binding="{Binding Enabled}" Value="False">
                                     <Setter Property="Background" Value="#F2F2F2"/>
                                     <Setter Property="Foreground" Value="#9E9E9E"/>
@@ -195,8 +203,8 @@
                         <DataGridTextColumn Header="{loc:Translate 命令}"
                                             Binding="{Binding TriggerFrame, UpdateSourceTrigger=PropertyChanged}"
                                             Width="1.5*" MinWidth="60"/>
-                        <DataGridTextColumn Header="{loc:Translate 名称}"
-                                            Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                        <DataGridTextColumn Header="{loc:Translate 预期回复}"
+                                            Binding="{Binding Expected, UpdateSourceTrigger=PropertyChanged}"
                                             Width="1.2*" MinWidth="50"/>
 
                         <!-- 解析方式：下拉选择 exact/mask/regex，存储值不变，显示本地化文本 -->

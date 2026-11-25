@@ -70,6 +70,7 @@ public static class RuleMigration
         Mode = CommandRuleMode.Auto,
         Enabled = reply.Enabled,
         Name = string.IsNullOrWhiteSpace(reply.Name) ? reply.Expected : reply.Name,
+        Expected = reply.Expected,
         TxFrame = reply.ActualReply,
         Format = LooksLikeHex(reply.Command) ? "hex" : "ascii",
         TriggerMode = reply.MatchMode,

@@ -191,7 +191,7 @@ var legacy = new DeviceRuleSet
     {
         new AutoReplyRule
         {
-            Name = "读保持寄存器", Enabled = false, MatchMode = "mask",
+            Name = "读保持寄存器", Expected = "地址01 功能码03", Enabled = false, MatchMode = "mask",
             Command = "01 03 ?? ?? ?? ?? ?? ??",
             ActualReply = "01 03 02 00 7A [CRC16]", DelayMs = 500
         },
@@ -222,6 +222,9 @@ Check("AutoReply(ASCII) 格式自动判别为 ascii",
     legacy.Commands[2].Format == "ascii"
     && legacy.Commands[2].TxFrame == "860123456789012\r\nOK",
     legacy.Commands[2].Format);
+Check("迁移保留预期回复文本",
+    legacy.Commands[1].Expected == "地址01 功能码03",
+    legacy.Commands[1].Expected);
 
 // 11. 已存在 Commands 时不重复迁移
 var migrationCount = legacy.Commands.Count;
@@ -297,7 +300,20 @@ Check("部分迁移文件补齐自动应答",
     && partial.AutoReplies.Count == 0,
     $"count={partial.Commands.Count}");
 
-// 16. HEX 判别边界
+// 16. 预期回复 vs 实际回复比对（表格行绿/红）
+var cmp = new CommandRule { Expected = "AA BB", TxFrame = "AA BB" };
+Check("预期与实际一致判为 match", cmp.ReplyMatchState == "match", cmp.ReplyMatchState);
+cmp.TxFrame = "AA BC";
+Check("预期与实际不同判为 mismatch", cmp.ReplyMatchState == "mismatch", cmp.ReplyMatchState);
+var asciiCmp = new CommandRule { Expected = "860123456789012\r\nOK" };
+asciiCmp.TxFrame = BitConverter.ToString(
+    System.Text.Encoding.UTF8.GetBytes(asciiCmp.Expected)).Replace('-', ' ');
+Check("ASCII 预期与 HEX 实际按字节判为 match",
+    asciiCmp.ReplyMatchState == "match", asciiCmp.ReplyMatchState);
+var emptyCmp = new CommandRule { TxFrame = "AA BB" };
+Check("预期为空不判定", emptyCmp.ReplyMatchState == "none", emptyCmp.ReplyMatchState);
+
+// 17. HEX 判别边界
 Check("HEX 帧判别",
     RuleMigration.LooksLikeHex("01 03 02 00 7A")
     && RuleMigration.LooksLikeHex("01 03 ?? ?? ?? ?? ?? ??")
