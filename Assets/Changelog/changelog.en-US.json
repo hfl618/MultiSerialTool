@@ -1,8 +1,11 @@
 [
   {
     "version": "1.0.8",
-    "date": "2026-11-20",
+    "date": "2026-11-25",
     "notes": [
+      "The Name column in the rule page command table is now Expected Reply: it is compared byte by byte with the actual reply recorded in Send Frame, and a row turns green on a match and red on a difference",
+      "Expected Reply accepts either HEX or ASCII: when one side is HEX and the other ASCII the comparison falls back to the actual bytes, and nothing is judged while either field is empty",
+      "Upgrade compatibility: the name of a legacy auto-reply is carried into Expected Reply during migration, so existing notes are not lost, and the engine tests cover the new behaviour",
       "Added an application icon: the main window, About, Export History, Find, New Command and Scope windows now all show the same icon",
       "The executable and the setup package carry the same icon, so Explorer, the taskbar and Apps & Features identify the app at a glance",
       "Fixed the log not scrolling automatically: both the row list and the plain-text view scroll to the newest entry, and still stay put while you scroll back through history",
